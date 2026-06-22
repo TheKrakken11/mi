@@ -422,15 +422,18 @@ function evaluateProperty(property) {
 function containsProperty(input) {
     const normalizedInput = input
         .toLowerCase()
-        .replaceAll(" ", "");
+        .replaceAll(" ", "")
+        .replaceAll(".", "");
 
-    return monopolyProperties.find(property =>
-        normalizedInput.includes(
-            property.name
-                .toLowerCase()
-                .replaceAll(" ", "")
-        )
-    );
+    return monopolyProperties.find(property => {
+        const normalizedName = property.name
+            .toLowerCase()
+            .replaceAll(" ", "")
+            .replaceAll(".", "");
+
+        return normalizedInput.includes(normalizedName) ||
+               normalizedName.includes(normalizedInput);
+    });
 }
 function buy(property) {
     mi.properties.push(property);
