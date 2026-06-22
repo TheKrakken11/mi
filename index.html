@@ -16,7 +16,7 @@
 <button onclick="payMoney()" style="position: fixed; left: 200px; top: 15%">
     Paid from MI
 </button>
-<button onclick="evaluateProperty()" style="position: fixed; right: 200px; top: 175px">
+<button onclick="property()" style="position: fixed; right: 200px; top: 175px">
     MI lands on this unowned property
 </button>
 <input id="propertyColor" style="position: fixed; right: 25px; top: 75px" placeholder="Property color">
@@ -37,6 +37,301 @@ let mi = {
     money: 1500,
     properties: []
 }
+const monopolyProperties = [
+    {
+        color: "brown",
+        name: "Mediterranean",
+        cost: 60,
+        rent: 2,
+        rentFull: 4,
+        rent1: 10,
+        rent2: 30,
+        rent3: 90,
+        rent4: 160,
+        Hrent: 250,
+        buildCost: 50
+    },
+    {
+        color: "brown",
+        name: "Baltic",
+        cost: 60,
+        rent: 4,
+        rentFull: 8,
+        rent1: 20,
+        rent2: 60,
+        rent3: 180,
+        rent4: 320,
+        Hrent: 450,
+        buildCost: 50
+    },
+
+    {
+        color: "light blue",
+        name: "Oriental",
+        cost: 100,
+        rent: 6,
+        rentFull: 12,
+        rent1: 30,
+        rent2: 90,
+        rent3: 270,
+        rent4: 400,
+        Hrent: 550,
+        buildCost: 50
+    },
+    {
+        color: "light blue",
+        name: "Vermont",
+        cost: 100,
+        rent: 6,
+        rentFull: 12,
+        rent1: 30,
+        rent2: 90,
+        rent3: 270,
+        rent4: 400,
+        Hrent: 550,
+        buildCost: 50
+    },
+    {
+        color: "light blue",
+        name: "Connecticut",
+        cost: 120,
+        rent: 8,
+        rentFull: 16,
+        rent1: 40,
+        rent2: 100,
+        rent3: 300,
+        rent4: 450,
+        Hrent: 600,
+        buildCost: 50
+    },
+
+    {
+        color: "pink",
+        name: "St. Charles",
+        cost: 140,
+        rent: 10,
+        rentFull: 20,
+        rent1: 50,
+        rent2: 150,
+        rent3: 450,
+        rent4: 625,
+        Hrent: 750,
+        buildCost: 100
+    },
+    {
+        color: "pink",
+        name: "States",
+        cost: 140,
+        rent: 10,
+        rentFull: 20,
+        rent1: 50,
+        rent2: 150,
+        rent3: 450,
+        rent4: 625,
+        Hrent: 750,
+        buildCost: 100
+    },
+    {
+        color: "pink",
+        name: "Virginia",
+        cost: 160,
+        rent: 12,
+        rentFull: 24,
+        rent1: 60,
+        rent2: 180,
+        rent3: 500,
+        rent4: 700,
+        Hrent: 900,
+        buildCost: 100
+    },
+
+    {
+        color: "orange",
+        name: "St. James",
+        cost: 180,
+        rent: 14,
+        rentFull: 28,
+        rent1: 70,
+        rent2: 200,
+        rent3: 550,
+        rent4: 750,
+        Hrent: 950,
+        buildCost: 100
+    },
+    {
+        color: "orange",
+        name: "Tennessee",
+        cost: 180,
+        rent: 14,
+        rentFull: 28,
+        rent1: 70,
+        rent2: 200,
+        rent3: 550,
+        rent4: 750,
+        Hrent: 950,
+        buildCost: 100
+    },
+    {
+        color: "orange",
+        name: "New York",
+        cost: 200,
+        rent: 16,
+        rentFull: 32,
+        rent1: 80,
+        rent2: 220,
+        rent3: 600,
+        rent4: 800,
+        Hrent: 1000,
+        buildCost: 100
+    },
+
+    {
+        color: "red",
+        name: "Kentucky",
+        cost: 220,
+        rent: 18,
+        rentFull: 36,
+        rent1: 90,
+        rent2: 250,
+        rent3: 700,
+        rent4: 875,
+        Hrent: 1050,
+        buildCost: 150
+    },
+    {
+        color: "red",
+        name: "Indiana",
+        cost: 220,
+        rent: 18,
+        rentFull: 36,
+        rent1: 90,
+        rent2: 250,
+        rent3: 700,
+        rent4: 875,
+        Hrent: 1050,
+        buildCost: 150
+    },
+    {
+        color: "red",
+        name: "Illinois",
+        cost: 240,
+        rent: 20,
+        rentFull: 40,
+        rent1: 100,
+        rent2: 300,
+        rent3: 750,
+        rent4: 925,
+        Hrent: 1100,
+        buildCost: 150
+    },
+
+    {
+        color: "yellow",
+        name: "Atlantic",
+        cost: 260,
+        rent: 22,
+        rentFull: 44,
+        rent1: 110,
+        rent2: 330,
+        rent3: 800,
+        rent4: 975,
+        Hrent: 1150,
+        buildCost: 150
+    },
+    {
+        color: "yellow",
+        name: "Ventnor",
+        cost: 260,
+        rent: 22,
+        rentFull: 44,
+        rent1: 110,
+        rent2: 330,
+        rent3: 800,
+        rent4: 975,
+        Hrent: 1150,
+        buildCost: 150
+    },
+    {
+        color: "yellow",
+        name: "Marvin Gardens",
+        cost: 280,
+        rent: 24,
+        rentFull: 48,
+        rent1: 120,
+        rent2: 360,
+        rent3: 850,
+        rent4: 1025,
+        Hrent: 1200,
+        buildCost: 150
+    },
+
+    {
+        color: "green",
+        name: "Pacific",
+        cost: 300,
+        rent: 26,
+        rentFull: 52,
+        rent1: 130,
+        rent2: 390,
+        rent3: 900,
+        rent4: 1100,
+        Hrent: 1275,
+        buildCost: 200
+    },
+    {
+        color: "green",
+        name: "North Carolina",
+        cost: 300,
+        rent: 26,
+        rentFull: 52,
+        rent1: 130,
+        rent2: 390,
+        rent3: 900,
+        rent4: 1100,
+        Hrent: 1275,
+        buildCost: 200
+    },
+    {
+        color: "green",
+        name: "Pennsylvania",
+        cost: 320,
+        rent: 28,
+        rentFull: 56,
+        rent1: 150,
+        rent2: 450,
+        rent3: 1000,
+        rent4: 1200,
+        Hrent: 1400,
+        buildCost: 200
+    },
+
+    {
+        color: "dark blue",
+        name: "Park Place",
+        cost: 350,
+        rent: 35,
+        rentFull: 70,
+        rent1: 175,
+        rent2: 500,
+        rent3: 1100,
+        rent4: 1300,
+        Hrent: 1500,
+        buildCost: 200
+    },
+    {
+        color: "dark blue",
+        name: "Boardwalk",
+        cost: 400,
+        rent: 50,
+        rentFull: 100,
+        rent1: 200,
+        rent2: 600,
+        rent3: 1400,
+        rent4: 1700,
+        Hrent: 2000,
+        buildCost: 200
+    }
+];
 let lines = 0;
 function log(message) {
     document.getElementById("log").innerHTML +=
@@ -76,9 +371,18 @@ function payMoney() {
     lines+=1
     update();
 }
-function evaluateProperty() {
+function property() {
+    const match = containsProperty(
+        document.getElementById("propertyName").value
+    );
+
+    if (match) {
+        evaluateProperty(match);
+        return;
+    }
+
     const property = {
-	color: document.getElementById("propertyColor").value,
+        color: document.getElementById("propertyColor").value,
         name: document.getElementById("propertyName").value,
         cost: Number(document.getElementById("propertyCost").value),
         rent: Number(document.getElementById("baseRent").value),
@@ -89,7 +393,11 @@ function evaluateProperty() {
         rent4: Number(document.getElementById("4Rent").value),
         Hrent: Number(document.getElementById("HRent").value),
         buildCost: Number(document.getElementById("buildCost").value)
-    }
+    };
+
+    evaluateProperty(property);
+}
+function evaluateProperty(property) {
     if (mi.properties.some(obj => obj.color === property.color)) {
 	const count = mi.properties.filter(obj => obj.color === property.color).length;
 	if (count === 2) {
@@ -110,6 +418,19 @@ function evaluateProperty() {
     }
     log("MI auctions " + property.name + ", MI will at maximum bid $" + Math.round(property.cost * (2/3)));
     return;
+}
+function containsProperty(input) {
+    const normalizedInput = input
+        .toLowerCase()
+        .replaceAll(" ", "");
+
+    return monopolyProperties.find(property =>
+        normalizedInput.includes(
+            property.name
+                .toLowerCase()
+                .replaceAll(" ", "")
+        )
+    );
 }
 function buy(property) {
     mi.properties.push(property);
