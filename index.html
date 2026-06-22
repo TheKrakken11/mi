@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html>
+<body>
+
+<h2 style="position: fixed; left: 40%; top: 2%">Marmot Intelligence</h2>
+
+
+<input type="number" id="moneyInput" style="position: fixed; left: 25px; top: 10%" placeholder="Enter amount">
+
+<button onclick="receiveMoney()" style="position: fixed; left: 200px; top: 10%">
+    Given to MI
+</button>
+
+<input type="number" id="payInput" style="position: fixed; left: 25px; top: 15%" placeholder="Enter amount">
+
+<button onclick="payMoney()" style="position: fixed; left: 200px; top: 15%">
+    Paid from MI
+</button>
+<button onclick="evaluateProperty()" style="position: fixed; right: 200px; top: 175px">
+    MI lands on this unowned property
+</button>
+<input id="propertyColor" style="position: fixed; right: 25px; top: 75px" placeholder="Property color">
+<input id="propertyName" style="position: fixed; right: 25px; top: 100px" placeholder="Property name">
+<input id="propertyCost" type="number" style="position: fixed; right: 25px; top: 125px" placeholder="Property cost">
+<input id="baseRent" type="number" style="position: fixed; right: 25px; top: 150px" placeholder="Base rent">
+<input id="1Rent" type="number" style="position: fixed; right: 25px; top: 175px" placeholder="Rent (1 house)">
+<input id="2Rent" type="number" style="position: fixed; right: 25px; top: 200px" placeholder="Rent (2 houses)">
+<input id="3Rent" type="number" style="position: fixed; right: 25px; top: 225px" placeholder="Rent (3 houses)">
+<input id="4Rent" type="number" style="position: fixed; right: 25px; top: 250px" placeholder="Rent (4 houses)">
+<input id="HRent" type="number" style="position: fixed; right: 25px; top: 275px" placeholder="Rent (1 hotel)">
+<input id="buildCost" type="number" style="position: fixed; right: 25px; top: 300px" placeholder="Building cost">
+<div id="log" style="position: fixed; left: 40%; top: 20%"></div>
+<div id="money" style="position: fixed; left: 40%; top: 5%"></div>
+
+<script>
+let mi = {
+    money: 1500,
+    properties: []
+}
+let lines = 0;
+function log(message) {
+    document.getElementById("log").innerHTML +=
+        "<p>" + message + "</p>";
+}
+function show() {
+    document.getElementById("money").innerHTML =
+        "<p>" + "MI Assets: " + mi.money + "</p>";
+}
+function update() {
+    const log = document.getElementById("log");
+    if (lines > 15) {
+        log.removeChild(log.firstElementChild);
+        lines--;
+    }
+}
+show();
+function receiveMoney() {
+
+    const amount =
+        Number(document.getElementById("moneyInput").value);
+    mi.money+=amount;
+    show();
+
+    log("MI received $" + amount);
+    lines+=1
+    update();
+}
+function payMoney() {
+
+    const amount =
+        Number(document.getElementById("payInput").value);
+    mi.money-=amount;
+    show();
+
+    log("MI paid $" + amount);
+    lines+=1
+    update();
+}
+function evaluateProperty() {
+    const property = {
+	color: document.getElementById("propertyColor").value,
+        name: document.getElementById("propertyName").value,
+        cost: Number(document.getElementById("propertyCost").value),
+        rent: Number(document.getElementById("baseRent").value),
+        rentFull: Number(document.getElementById("baseRent").value) * 2,
+        rent1: Number(document.getElementById("1Rent").value),
+        rent2: Number(document.getElementById("2Rent").value),
+        rent3: Number(document.getElementById("3Rent").value),
+        rent4: Number(document.getElementById("4Rent").value),
+        Hrent: Number(document.getElementById("HRent").value),
+        buildCost: Number(document.getElementById("buildCost").value)
+    }
+    if (mi.properties.some(obj => obj.color === property.color)) {
+	const count = mi.properties.filter(obj => obj.color === property.color).length;
+	if (count === 2) {
+	    if (mi.money - property.cost >= 100) {
+		buy(property);
+		return;
+	    }
+	} else {
+	    if (mi.money - property.cost >= 200) {
+		buy(property);
+		return;
+	    }
+	}
+    }
+    if (property.Hrent >= 600 && property.Hrent / property.cost >= 4 && mi.money - property.cost >= 250) {
+	buy(property);
+	return;
+    }
+    log("MI auctions " + property.name + ", MI will at maximum bid $" + Math.round(property.cost * (2/3)));
+    return;
+}
+function buy(property) {
+    mi.properties.push(property);
+    mi.money -= property.cost;
+    show();
+    log("MI purchases " + property.name + " for $" + property.cost);
+    lines++;
+    update();
+}
+</script>
+
+</body>
+</html>
