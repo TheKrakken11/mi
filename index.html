@@ -19,6 +19,12 @@
 <button onclick="property()" style="position: fixed; right: 200px; top: 175px">
     MI lands on this unowned property
 </button>
+<button onclick="addProperty()" style="position: fixed; right: 200px; top: 200px">
+    MI receives this property
+</button>
+<button onclick="auctionProperty()" style="position: fixed; right: 200px; top: 225px">
+    Auction on this property
+</button>
 <input id="propertyColor" style="position: fixed; right: 25px; top: 75px" placeholder="Property color">
 <input id="propertyName" style="position: fixed; right: 25px; top: 100px" placeholder="Property name">
 <input id="propertyCost" type="number" style="position: fixed; right: 25px; top: 125px" placeholder="Property cost">
@@ -29,14 +35,34 @@
 <input id="4Rent" type="number" style="position: fixed; right: 25px; top: 250px" placeholder="Rent (4 houses)">
 <input id="HRent" type="number" style="position: fixed; right: 25px; top: 275px" placeholder="Rent (1 hotel)">
 <input id="buildCost" type="number" style="position: fixed; right: 25px; top: 300px" placeholder="Building cost">
-<div id="log" style="position: fixed; left: 40%; top: 20%"></div>
-<div id="money" style="position: fixed; left: 40%; top: 5%"></div>
+<div id="log" style="position: fixed; left: 40%; top: 25%"></div>
+<div id="money" style="position: fixed; left: 40%; top: 7%"></div>
 
 <script>
 let mi = {
     money: 1500,
     properties: []
 }
+const exceptions = [
+    {
+	color: "dark blue",
+	amount: 2
+    },
+    {
+	color: "brown",
+	amount: 2
+    },
+    {
+	color: "railroad",
+	amount: 4,
+	NOBUILD: true
+    },
+    {
+	color: "utility",
+	amount: 2,
+	NOBUILD: true
+    }
+];
 const monopolyProperties = [
     {
         color: "brown",
@@ -330,6 +356,84 @@ const monopolyProperties = [
         rent4: 1700,
         Hrent: 2000,
         buildCost: 200
+    },
+    {
+	color: "railroad",
+	name: "Reading RR",
+	cost: 200,
+	rent: 25,
+	rentFull: 50,
+	rent1: 50, //NOTE: Railroad rent based on all COMBINED RENT at Hrent
+	rent2: 100,
+	rent3: 200,
+	rent4: 300,
+	Hrent: 800, //200 * 4 railroads
+	buildCost: 0
+    },
+    {
+	color: "railroad",
+	name: "Pennsylvania RR",
+	cost: 200,
+	rent: 25,
+	rentFull: 50,
+	rent1: 50, //NOTE: Railroad rent based on all COMBINED RENT at Hrent
+	rent2: 100,
+	rent3: 200,
+	rent4: 300,
+	Hrent: 800, //200 * 4 railroads
+	buildCost: 0
+    },
+    {
+	color: "railroad",
+	name: "B&O RR",
+	cost: 200,
+	rent: 25,
+	rentFull: 50,
+	rent1: 50, //NOTE: Railroad rent based on all COMBINED RENT at Hrent
+	rent2: 100,
+	rent3: 200,
+	rent4: 300,
+	Hrent: 800, //200 * 4 railroads
+	buildCost: 0
+    },
+    {
+	color: "railroad",
+	name: "Short Line RR",
+	cost: 200,
+	rent: 25,
+	rentFull: 50,
+	rent1: 50, //NOTE: Railroad rent based on all COMBINED RENT at Hrent
+	rent2: 100,
+	rent3: 200,
+	rent4: 300,
+	Hrent: 800, //200 * 4 railroads
+	buildCost: 0
+    },
+    {
+	color: "utility",
+	name: "Electric Company",
+	cost: 150,
+	rent: 24,
+	rentFull: 28,
+	rent1: 32, //NOTE: Utility rent based on all COMBINED MAX POSSIBLE RENT at Hrent
+	rent2: 60,
+	rent3: 70,
+	rent4: 80,
+	Hrent: 120, //12 roll * 10
+	buildCost: 0
+    },
+    {
+	color: "utility",
+	name: "Water Works",
+	cost: 150,
+	rent: 24,
+	rentFull: 28,
+	rent1: 32, //NOTE: Utility rent based on all COMBINED MAX POSSIBLE RENT at Hrent
+	rent2: 60,
+	rent3: 70,
+	rent4: 80,
+	Hrent: 120, //12 roll * 10
+	buildCost: 0
     }
 ];
 let lines = 0;
@@ -343,7 +447,7 @@ function show() {
 }
 function update() {
     const log = document.getElementById("log");
-    if (lines > 15) {
+    if (lines > 10) {
         log.removeChild(log.firstElementChild);
         lines--;
     }
@@ -397,6 +501,74 @@ function property() {
 
     evaluateProperty(property);
 }
+function addProperty() {
+    const match = containsProperty(
+        document.getElementById("propertyName").value
+    );
+
+    if (match) {
+	log("MI receives " + match.name);
+	lines++;
+	update();
+        mi.properties.push(match);
+        return;
+    }
+
+    const property = {
+        color: document.getElementById("propertyColor").value,
+        name: document.getElementById("propertyName").value,
+        cost: Number(document.getElementById("propertyCost").value),
+        rent: Number(document.getElementById("baseRent").value),
+        rentFull: Number(document.getElementById("baseRent").value) * 2,
+        rent1: Number(document.getElementById("1Rent").value),
+        rent2: Number(document.getElementById("2Rent").value),
+        rent3: Number(document.getElementById("3Rent").value),
+        rent4: Number(document.getElementById("4Rent").value),
+        Hrent: Number(document.getElementById("HRent").value),
+        buildCost: Number(document.getElementById("buildCost").value)
+    };
+    log("MI receives " + property.name);
+    lines++;
+    update();
+    mi.properties.push(property);
+}
+function auctionProperty() {
+    const match = containsProperty(
+        document.getElementById("propertyName").value
+    );
+
+    if (match) {
+	let auctionMax = Math.round(match.cost * (2/3));
+        if (mi.money - auctionMax <= 200) {
+	    auctionMax += 200 - (mi.money - auctionMax);
+        }
+        log("MI auctions " + match.name + ", MI will at maximum bid $" + auctionMax);
+        lines++;
+        update();
+        return;
+    }
+
+    const property = {
+        color: document.getElementById("propertyColor").value,
+        name: document.getElementById("propertyName").value,
+        cost: Number(document.getElementById("propertyCost").value),
+        rent: Number(document.getElementById("baseRent").value),
+        rentFull: Number(document.getElementById("baseRent").value) * 2,
+        rent1: Number(document.getElementById("1Rent").value),
+        rent2: Number(document.getElementById("2Rent").value),
+        rent3: Number(document.getElementById("3Rent").value),
+        rent4: Number(document.getElementById("4Rent").value),
+        Hrent: Number(document.getElementById("HRent").value),
+        buildCost: Number(document.getElementById("buildCost").value)
+    };
+    let auctionMax = Math.round(property.cost * (2/3));
+    if (mi.money - auctionMax <= 200) {
+	auctionMax += 200 - (mi.money - auctionMax);
+    }
+    log("MI auctions " + property.name + ", MI will at maximum bid $" + auctionMax);
+    lines++;
+    update();
+}
 function evaluateProperty(property) {
     if (mi.properties.some(obj => obj.color === property.color)) {
 	const count = mi.properties.filter(obj => obj.color === property.color).length;
@@ -416,7 +588,13 @@ function evaluateProperty(property) {
 	buy(property);
 	return;
     }
-    log("MI auctions " + property.name + ", MI will at maximum bid $" + Math.round(property.cost * (2/3)));
+    let auctionMax = Math.round(property.cost * (2/3));
+    if (mi.money - auctionMax <= 200) {
+	auctionMax += 200 - (mi.money - auctionMax);
+    }
+    log("MI auctions " + property.name + ", MI will at maximum bid $" + auctionMax);
+    lines++;
+    update();
     return;
 }
 function containsProperty(input) {
