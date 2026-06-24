@@ -45,22 +45,22 @@ let mi = {
 }
 const exceptions = [
     {
-	color: "dark blue",
-	amount: 2
+        color: "dark blue",
+        amount: 2
     },
     {
-	color: "brown",
-	amount: 2
+        color: "brown",
+        amount: 2
     },
     {
-	color: "railroad",
-	amount: 4,
-	NOBUILD: true
+        color: "railroad",
+        amount: 4,
+        NOBUILD: true
     },
     {
-	color: "utility",
-	amount: 2,
-	NOBUILD: true
+        color: "utility",
+        amount: 2,
+        NOBUILD: true
     }
 ];
 const monopolyProperties = [
@@ -358,17 +358,17 @@ const monopolyProperties = [
         buildCost: 200
     },
     {
-	color: "railroad",
-	name: "Reading RR",
-	cost: 200,
-	rent: 25,
-	rentFull: 50,
-	rent1: 50, //NOTE: Railroad rent based on all COMBINED RENT at Hrent
-	rent2: 100,
-	rent3: 200,
-	rent4: 300,
-	Hrent: 800, //200 * 4 railroads
-	buildCost: 0
+	    color: "railroad",
+	    name: "Reading RR",
+	    cost: 200,
+	    rent: 25,
+	    rentFull: 50,
+	    rent1: 50, //NOTE: Railroad rent based on all COMBINED RENT at Hrent
+	    rent2: 100,
+	    rent3: 200,
+	    rent4: 300,
+	    Hrent: 800, //200 * 4 railroads
+	    buildCost: 0
     },
     {
 	color: "railroad",
@@ -585,13 +585,12 @@ function evaluateProperty(property) {
 	}
     }
     if (property.Hrent >= 600 && property.Hrent / property.cost >= 4 && mi.money - property.cost >= 250) {
-	buy(property);
-	return;
+		if (mi.properties.length < 5 || property.Hrent >= 1500) {
+			buy(property);
+			return;
+		}
     }
-    let auctionMax = Math.round(property.cost * (2/3));
-    if (mi.money - auctionMax <= 200) {
-	auctionMax += 200 - (mi.money - auctionMax);
-    }
+    let auctionMax = Math.min(Math.round(property.cost * (2/3)), mi.money - 200);
     log("MI auctions " + property.name + ", MI will at maximum bid $" + auctionMax);
     lines++;
     update();
@@ -621,6 +620,12 @@ function buy(property) {
     lines++;
     update();
 }
+function update() {
+	update();
+	show();
+	requestAnimationFrame(update);
+}
+update();
 </script>
 
 </body>
