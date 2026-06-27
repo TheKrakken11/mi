@@ -622,6 +622,65 @@ function remainingInSet(property) {
 
     return 3 - owned;
 }
+function mortgage() {
+    if (mi.money >= 100) return;
+
+    // Count owned properties by color
+    let colors = [];
+
+    mi.properties.forEach(property => {
+        const color = colors.find(obj => obj.color === property.color);
+
+        if (!color) {
+            colors.push({
+                color: property.color,
+                amount: 1
+            });
+        } else {
+            color.amount++;
+        }
+    });
+
+    // Mortgage singleton colors first
+    for (const color of colors.filter(c => c.amount === 1)) {
+        if (mi.money >= 100) break;
+
+        const property = mi.properties.find(
+            p => p.color === color.color && !p.mortgaged
+        );
+
+        if (property) {
+            property.mortgaged = true;
+            mi.money += property.cost / 2;
+            show();
+
+            log("MI mortgages " + property.name +
+                " for $" + (property.cost / 2));
+            lines++;
+            update();
+        }
+    }
+
+    // Mortgage remaining cheapest properties if needed
+    if (mi.money < 100) {
+        const remaining = mi.properties
+            .filter(p => !p.mortgaged)
+            .sort((a, b) => a.cost - b.cost);
+
+        for (const property of remaining) {
+            if (mi.money >= 100) break;
+
+            property.mortgaged = true;
+            mi.money += property.cost / 2;
+            show();
+
+            log("MI mortgages " + property.name +
+                " for $" + (property.cost / 2));
+            lines++;
+            update();
+        }
+    }
+}
 function buy(property) {
     mi.properties.push(property);
     mi.money -= property.cost;
