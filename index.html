@@ -571,20 +571,20 @@ function auctionProperty() {
 }
 function evaluateProperty(property) {
     if (mi.properties.some(obj => obj.color === property.color)) {
-	const count = mi.properties.filter(obj => obj.color === property.color).length;
-	if (count === 2) {
+	const count = remainingInSet(property);
+	if (count === 1) {
 	    if (mi.money - property.cost >= 100) {
 		buy(property);
 		return;
 	    }
 	} else {
-	    if (mi.money - property.cost >= 200) {
+	    if (mi.money - property.cost >= 150) {
 		buy(property);
 		return;
 	    }
 	}
     }
-    if (property.Hrent >= 600 && property.Hrent / property.cost >= 4 && mi.money - property.cost >= 250) {
+    if (property.Hrent > 600 && property.Hrent / property.cost >= 4 && mi.money - property.cost >= 250) {
 		if (mi.properties.length < 5 || property.Hrent >= 1500) {
 			buy(property);
 			return;
@@ -611,6 +611,16 @@ function containsProperty(input) {
         return normalizedInput.includes(normalizedName) ||
                normalizedName.includes(normalizedInput);
     });
+}
+function remainingInSet(property) {
+    const owned = mi.properties.filter(obj => obj.color === property.color).length;
+    const exception = exceptions.find(obj => obj.color === property.color);
+
+    if (exception) {
+        return exception.amount - owned;
+    }
+
+    return 3 - owned;
 }
 function buy(property) {
     mi.properties.push(property);
