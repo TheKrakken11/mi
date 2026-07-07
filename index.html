@@ -507,10 +507,18 @@ function addProperty() {
     );
 
     if (match) {
-	log("MI receives " + match.name);
-	lines++;
-	update();
-        mi.properties.push(match);
+        log("MI receives " + match.name);
+        lines++;
+        update();
+
+        mi.properties.push({
+            ...match,
+            houses: 0,
+            hotel: false,
+            mortgaged: false
+        });
+
+        buyHouses();
         return;
     }
 
@@ -525,12 +533,20 @@ function addProperty() {
         rent3: Number(document.getElementById("3Rent").value),
         rent4: Number(document.getElementById("4Rent").value),
         Hrent: Number(document.getElementById("HRent").value),
-        buildCost: Number(document.getElementById("buildCost").value)
+        buildCost: Number(document.getElementById("buildCost").value),
+
+        houses: 0,
+        hotel: false,
+        mortgaged: false
     };
+
     log("MI receives " + property.name);
     lines++;
     update();
+
     mi.properties.push(property);
+
+    buyHouses();
 }
 function auctionProperty() {
     const match = containsProperty(
@@ -622,8 +638,216 @@ function remainingInSet(property) {
 
     return 3 - owned;
 }
+function hasMonopoly(color) {
+    const exception = exceptions.find(obj => obj.color === color);
+
+    const required = exception ? exception.amount : 3;
+
+    return mi.properties.filter(property =>
+        property.color === color &&
+        !property.mortgaged
+    ).length >= required;
+}
+function getSet(color) {
+    return mi.properties
+        .filter(property =>
+            property.color === color &&
+            !property.mortgaged
+        )
+        .sort((a, b) => a.cost - b.cost);
+}
+function canBuild(property) {
+    // Can't build on railroads or utilities
+    if (property.color === "railroad" || property.color === "utility") {
+        return false;
+    }
+
+    // Must own the monopoly
+    if (!hasMonopoly(property.color)) {
+        return false;
+    }
+
+    const set = getSet(property.color);
+
+    // Can't build on mortgaged properties
+    if (property.mortgaged) {
+        return false;
+    }
+
+    // Already has a hotel
+    if (property.hotel) {
+        return false;
+    }
+
+    // Find the fewest houses in the set
+    let minimum = Math.min(...set.map(p => p.houses));
+
+    // Can only build on properties tied for the fewest houses
+    return property.houses === minimum;
+}
+function buyHouses() {
+    const reserve = 200; // MI tries to keep this much cash
+
+    let built = true;
+
+    while (built) {
+        built = false;
+
+        for (const property of mi.properties) {
+
+            // Skip anything that cannot be built on
+            if (!canBuild(property)) {
+                continue;
+            }
+
+            // Need enough money for the building
+            if (mi.money - property.buildCost < reserve) {
+                return;
+            }
+
+            // Build a house
+            if (property.houses < 4) {
+                property.houses++;
+                mi.money -= property.buildCost;
+
+                log(
+                    "MI builds a house on " +
+                    property.name +
+                    " for $" +
+                    property.buildCost
+                );
+
+                show();
+                lines++;
+                update();
+
+                built = true;
+            }
+
+            // Convert four houses into a hotel
+            else if (property.houses === 4) {
+
+                const set = getSet(property.color);
+
+                // All properties must have four houses first
+                if (set.every(p => p.houses === 4)) {
+
+                    if (mi.money - property.buildCost < reserve) {
+                        return;
+                    }
+
+                    property.houses = 0;
+                    property.hotel = true;
+                    mi.money -= property.buildCost;
+
+                    log(
+                        "MI builds a hotel on " +
+                        property.name +
+                        " for $" +
+                        property.buildCost
+                    );
+
+                    show();
+                    lines++;
+                    update();
+
+                    built = true;
+                }
+            }
+        }
+    }
+}
+function canSell(property) {
+    // Can't sell from properties without a monopoly
+    if (!hasMonopoly(property.color)) {
+        return false;
+    }
+
+    const set = getSet(property.color);
+
+    // Must have something to sell
+    if (property.hotel || property.houses <= 0) {
+        return true;
+    }
+
+    // Find the highest number of houses in the set
+    const maximum = Math.max(...set.map(p => p.houses));
+
+    // Can only sell from properties tied for the most houses
+    return property.houses === maximum;
+}
+function sellBuildings() {
+    const reserve = 100; // Minimum cash MI wants before mortgaging
+
+    if (mi.money >= reserve) {
+        return;
+    }
+
+    let sold = true;
+
+    while (sold && mi.money < reserve) {
+        sold = false;
+
+        for (const property of mi.properties) {
+
+            if (!canSell(property)) {
+                continue;
+            }
+
+            // Sell hotel back into four houses
+            if (property.hotel) {
+                property.hotel = false;
+                property.houses = 4;
+
+                mi.money += property.buildCost / 2;
+
+                log(
+                    "MI sells hotel on " +
+                    property.name +
+                    " for $" +
+                    (property.buildCost / 2)
+                );
+
+                show();
+
+                lines++;
+                update();
+
+                sold = true;
+                break;
+            }
+
+            // Sell houses
+            if (property.houses > 0) {
+                property.houses--;
+
+                mi.money += property.buildCost / 2;
+
+                log(
+                    "MI sells a house on " +
+                    property.name +
+                    " for $" +
+                    (property.buildCost / 2)
+                );
+
+                show();
+
+                lines++;
+                update();
+
+                sold = true;
+                break;
+            }
+        }
+    }
+}
 function mortgage() {
-    if (mi.money >= 100) return;
+    // First try selling buildings
+    sellBuildings();
+
+    if (mi.money >= 100) {
+        return;
+    }
 
     // Count owned properties by color
     let colors = [];
@@ -643,19 +867,30 @@ function mortgage() {
 
     // Mortgage singleton colors first
     for (const color of colors.filter(c => c.amount === 1)) {
-        if (mi.money >= 100) break;
+        if (mi.money >= 100) {
+            break;
+        }
 
         const property = mi.properties.find(
-            p => p.color === color.color && !p.mortgaged
+            p => p.color === color.color &&
+                 !p.mortgaged &&
+                 p.houses === 0 &&
+                 !p.hotel
         );
 
         if (property) {
             property.mortgaged = true;
             mi.money += property.cost / 2;
+
             show();
 
-            log("MI mortgages " + property.name +
-                " for $" + (property.cost / 2));
+            log(
+                "MI mortgages " +
+                property.name +
+                " for $" +
+                (property.cost / 2)
+            );
+
             lines++;
             update();
         }
@@ -664,30 +899,55 @@ function mortgage() {
     // Mortgage remaining cheapest properties if needed
     if (mi.money < 100) {
         const remaining = mi.properties
-            .filter(p => !p.mortgaged)
+            .filter(p =>
+                !p.mortgaged &&
+                p.houses === 0 &&
+                !p.hotel
+            )
             .sort((a, b) => a.cost - b.cost);
 
         for (const property of remaining) {
-            if (mi.money >= 100) break;
+
+            if (mi.money >= 100) {
+                break;
+            }
 
             property.mortgaged = true;
             mi.money += property.cost / 2;
+
             show();
 
-            log("MI mortgages " + property.name +
-                " for $" + (property.cost / 2));
+            log(
+                "MI mortgages " +
+                property.name +
+                " for $" +
+                (property.cost / 2)
+            );
+
             lines++;
             update();
         }
     }
 }
 function buy(property) {
-    mi.properties.push(property);
+    // Create a copy so the master property list isn't modified
+    const ownedProperty = {
+        ...property,
+        houses: 0,
+        hotel: false,
+        mortgaged: false
+    };
+
+    mi.properties.push(ownedProperty);
     mi.money -= property.cost;
+
     show();
     log("MI purchases " + property.name + " for $" + property.cost);
+
     lines++;
     update();
+
+    buyHouses();
 }
 function run() {
 	mortgage();
