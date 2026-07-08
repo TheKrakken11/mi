@@ -758,22 +758,23 @@ function buyHouses() {
     }
 }
 function canSell(property) {
-    // Can't sell from properties without a monopoly
+
     if (!hasMonopoly(property.color)) {
         return false;
     }
 
     const set = getSet(property.color);
 
-    // Must have something to sell
-    if (property.hotel || property.houses <= 0) {
-        return true;
+    if (property.hotel) {
+        return set.every(p => p.hotel || p.houses === 4);
     }
 
-    // Find the highest number of houses in the set
+    if (property.houses <= 0) {
+        return false;
+    }
+
     const maximum = Math.max(...set.map(p => p.houses));
 
-    // Can only sell from properties tied for the most houses
     return property.houses === maximum;
 }
 function sellBuildings() {
@@ -950,9 +951,12 @@ function buy(property) {
     buyHouses();
 }
 function run() {
-	mortgage();
-	requestAnimationFrame(run);
+    mortgage();
+    buyHouses();
+
+    setTimeout(run, 1000);
 }
+
 run();
 </script>
 
