@@ -38,6 +38,11 @@
 <div id="log" style="position: fixed; left: 40%; top: 25%"></div>
 <div id="money" style="position: fixed; left: 40%; top: 7%"></div>
 
+<button onclick="startListening()"
+        style="position:fixed; left:25px; bottom:25px;">
+Start Voice
+</button>
+	
 <script>
 let mi = {
     money: 1500,
@@ -956,6 +961,171 @@ function run() {
 
     setTimeout(run, 1000);
 }
+
+const SpeechRecognition =
+    window.SpeechRecognition ||
+    window.webkitSpeechRecognition;
+
+if (SpeechRecognition) {
+
+    const recognition = new SpeechRecognition();
+
+    recognition.continuous = true;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+
+    function startListening() {
+        recognition.start();
+        log("Voice listening...");
+    }
+
+    recognition.onend = () => {
+        recognition.start();
+    };
+
+    recognition.onresult = (event) => {
+
+        const text =
+            event.results[event.results.length - 1][0]
+            .transcript
+            .toLowerCase();
+
+        processVoice(text);
+    };
+
+    recognition.onerror = e => {
+        log("Voice error: " + e.error);
+    };
+
+} else {
+
+    function startListening() {
+        alert("Speech recognition is not supported in this browser.");
+    }
+
+}
+
+function processVoice(text) {
+
+    if (!text.includes("hey mi"))
+        return;
+
+    let command = text.substring(
+        text.indexOf("hey mi") + 6
+    ).trim();
+
+    //--------------------------------------------------
+    // PAY
+    //--------------------------------------------------
+
+    if (command.includes("pay")) {
+
+        const number = command.match(/\d+/);
+
+        if (number) {
+
+            document.getElementById("payInput").value =
+                Number(number[0]);
+
+            payMoney();
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------
+    // RECEIVE MONEY
+    //--------------------------------------------------
+
+    if (
+        command.includes("receive") ||
+        command.includes("received") ||
+        command.includes("collect") ||
+        command.includes("got")
+    ) {
+
+        // Don't mistake "receive property" for money
+        if (command.includes("property"))
+            return;
+
+        const number = command.match(/\d+/);
+
+        if (number) {
+
+            document.getElementById("moneyInput").value =
+                Number(number[0]);
+
+            receiveMoney();
+        }
+
+        return;
+    }
+
+    //--------------------------------------------------
+    // RECEIVE PROPERTY
+    //--------------------------------------------------
+
+    if (
+        command.includes("receive property") ||
+        command.includes("received property") ||
+        command.includes("buy property") ||
+        command.includes("bought")
+    ) {
+
+        let propertyName = command
+            .replace(/.*receive(d)? property/, "")
+            .replace(/.*buy property/, "")
+            .replace(/.*bought/, "")
+            .trim();
+
+        document.getElementById("propertyName").value =
+            propertyName;
+
+        addProperty();
+
+        return;
+    }
+
+    //--------------------------------------------------
+    // LAND ON
+    //--------------------------------------------------
+
+    if (
+        command.includes("land on") ||
+        command.includes("landed on")
+    ) {
+
+        let propertyName = command
+            .replace(/.*land(ed)? on/, "")
+            .trim();
+
+        document.getElementById("propertyName").value =
+            propertyName;
+
+        property();
+
+        return;
+    }
+
+    //--------------------------------------------------
+    // AUCTION
+    //--------------------------------------------------
+
+    if (command.includes("auction")) {
+
+        let propertyName = command
+            .replace(/.*auction/, "")
+            .trim();
+
+        document.getElementById("propertyName").value =
+            propertyName;
+
+        auctionProperty();
+
+        return;
+    }
+}
+
 
 run();
 </script>
