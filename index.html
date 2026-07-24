@@ -983,12 +983,8 @@ function runVoiceCommand() {
 
 function processVoice(text) {
 
-    if (!text.includes("hey mi"))
-        return;
+    let command = text.trim();
 
-    let command = text.substring(
-        text.indexOf("hey mi") + 6
-    ).trim();
 
     //--------------------------------------------------
     // PAY
