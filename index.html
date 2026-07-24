@@ -38,10 +38,20 @@
 <div id="log" style="position: fixed; left: 40%; top: 25%"></div>
 <div id="money" style="position: fixed; left: 40%; top: 7%"></div>
 
-<button onclick="startListening()"
-        style="position:fixed; left:25px; bottom:25px;">
+<button onclick="document.getElementById('voiceInput').focus()"
+style="position:fixed; left:25px; bottom:25px;">
 Start Voice
 </button>
+
+<input id="voiceInput"
+       style="position:fixed; left:25px; bottom:75px; width:250px"
+       placeholder="Say or type command">
+
+<button onclick="runVoiceCommand()"
+        style="position:fixed; left:25px; bottom:25px;">
+Run Command
+</button>
+
 	
 <script>
 let mi = {
@@ -962,47 +972,16 @@ function run() {
     setTimeout(run, 1000);
 }
 
-const SpeechRecognition =
-    window.SpeechRecognition ||
-    window.webkitSpeechRecognition;
+function runVoiceCommand() {
 
-if (SpeechRecognition) {
+    const text =
+        document.getElementById("voiceInput")
+        .value
+        .toLowerCase();
 
-    const recognition = new SpeechRecognition();
+    processVoice(text);
 
-    recognition.continuous = true;
-    recognition.interimResults = false;
-    recognition.lang = "en-US";
-
-    function startListening() {
-        recognition.start();
-        log("Voice listening...");
-    }
-
-    recognition.onend = () => {
-        recognition.start();
-    };
-
-    recognition.onresult = (event) => {
-
-        const text =
-            event.results[event.results.length - 1][0]
-            .transcript
-            .toLowerCase();
-
-        processVoice(text);
-    };
-
-    recognition.onerror = e => {
-        log("Voice error: " + e.error);
-    };
-
-} else {
-
-    function startListening() {
-        alert("Speech recognition is not supported in this browser.");
-    }
-
+    document.getElementById("voiceInput").value = "";
 }
 
 function processVoice(text) {
@@ -1029,6 +1008,31 @@ function processVoice(text) {
 
             payMoney();
         }
+
+        return;
+    }
+
+    //--------------------------------------------------
+    // RECEIVE PROPERTY
+    //--------------------------------------------------
+
+    if (
+        command.includes("receive property") ||
+        command.includes("received property") ||
+        command.includes("buy property") ||
+        command.includes("bought")
+    ) {
+
+        let propertyName = command
+            .replace(/.*receive(d)? property/, "")
+            .replace(/.*buy property/, "")
+            .replace(/.*bought/, "")
+            .trim();
+
+        document.getElementById("propertyName").value =
+            propertyName;
+
+        addProperty();
 
         return;
     }
@@ -1061,30 +1065,6 @@ function processVoice(text) {
         return;
     }
 
-    //--------------------------------------------------
-    // RECEIVE PROPERTY
-    //--------------------------------------------------
-
-    if (
-        command.includes("receive property") ||
-        command.includes("received property") ||
-        command.includes("buy property") ||
-        command.includes("bought")
-    ) {
-
-        let propertyName = command
-            .replace(/.*receive(d)? property/, "")
-            .replace(/.*buy property/, "")
-            .replace(/.*bought/, "")
-            .trim();
-
-        document.getElementById("propertyName").value =
-            propertyName;
-
-        addProperty();
-
-        return;
-    }
 
     //--------------------------------------------------
     // LAND ON
