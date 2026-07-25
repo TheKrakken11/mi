@@ -668,7 +668,11 @@ function getSet(color) {
         )
         .sort((a, b) => a.cost - b.cost);
 }
+function buildingLevel(property) {
+    return property.hotel ? 5 : property.houses;
+}
 function canBuild(property) {
+
     // Can't build on railroads or utilities
     if (property.color === "railroad" || property.color === "utility") {
         return false;
@@ -678,8 +682,6 @@ function canBuild(property) {
     if (!hasMonopoly(property.color)) {
         return false;
     }
-
-    const set = getSet(property.color);
 
     // Can't build on mortgaged properties
     if (property.mortgaged) {
@@ -691,34 +693,37 @@ function canBuild(property) {
         return false;
     }
 
-    // Find the fewest houses in the set
-    let minimum = Math.min(...set.map(p => p.houses));
+    const set = getSet(property.color);
 
-    // Can only build on properties tied for the fewest houses
-    return property.houses === minimum;
+    // Compare building levels (hotel counts as 5)
+    const minimum = Math.min(...set.map(buildingLevel));
+
+    return buildingLevel(property) === minimum;
 }
 function buyHouses() {
+
     const reserve = 125; // MI tries to keep this much cash
 
     let built = true;
 
     while (built) {
+
         built = false;
 
         for (const property of mi.properties) {
 
-            // Skip anything that cannot be built on
             if (!canBuild(property)) {
                 continue;
             }
 
-            // Need enough money for the building
+            // Enough money?
             if (mi.money - property.buildCost < reserve) {
                 return;
             }
 
             // Build a house
             if (property.houses < 4) {
+
                 property.houses++;
                 mi.money -= property.buildCost;
 
@@ -736,13 +741,13 @@ function buyHouses() {
                 built = true;
             }
 
-            // Convert four houses into a hotel
-            else if (property.houses === 4) {
+            // Upgrade to hotel
+            else {
 
                 const set = getSet(property.color);
 
-                // All properties must have four houses first
-                if (set.every(p => p.houses === 4)) {
+                // Every property must already have four houses or a hotel
+                if (set.every(p => buildingLevel(p) >= 4)) {
 
                     if (mi.money - property.buildCost < reserve) {
                         return;
@@ -750,6 +755,7 @@ function buyHouses() {
 
                     property.houses = 0;
                     property.hotel = true;
+
                     mi.money -= property.buildCost;
 
                     log(
@@ -777,17 +783,18 @@ function canSell(property) {
 
     const set = getSet(property.color);
 
+    const maximum = Math.max(...set.map(buildingLevel));
+
+    // Hotels can only be sold if they're tied for the highest level
     if (property.hotel) {
-        return set.every(p => p.hotel || p.houses === 4);
+        return buildingLevel(property) === maximum;
     }
 
     if (property.houses <= 0) {
         return false;
     }
 
-    const maximum = Math.max(...set.map(p => p.houses));
-
-    return property.houses === maximum;
+    return buildingLevel(property) === maximum;
 }
 function sellBuildings() {
     const reserve = 100; // Minimum cash MI wants before mortgaging
