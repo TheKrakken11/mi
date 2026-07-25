@@ -589,7 +589,7 @@ function auctionProperty() {
         Hrent: Number(document.getElementById("HRent").value),
         buildCost: Number(document.getElementById("buildCost").value)
     };
-    let auctionMax = Math.max(0, Math.min(Math.round(property.cost * (2/3)), mi.money - 200));
+    let auctionMax = Math.max(10, Math.min(Math.round(property.cost * (2/3)), mi.money - 200));
     log("MI auctions " + property.name + ", MI will at maximum bid $" + auctionMax);
     lines++;
     update();
@@ -615,7 +615,7 @@ function evaluateProperty(property) {
 			return;
 		}
     }
-    let auctionMax = Math.max(0, Math.min(Math.round(property.cost * (2/3)), mi.money - 200));
+    let auctionMax = Math.max(10, Math.min(Math.round(property.cost * (2/3)), mi.money - 200));
     log("MI auctions " + property.name + ", MI will at maximum bid $" + auctionMax);
     lines++;
     update();
