@@ -1174,26 +1174,27 @@ function completeTrade(trade) {
 
     // Remove properties MI gives
     for (const item of trade.give) {
+		
+		if (item.startsWith("$")) {
+			
+			mi.money -= Number(
+				item.replace("$", "")
+			);
+			
+			continue;
+		}
+		
+		const property = getOwnedProperty(item);
+		
+		if (property) {
+			
+			mi.properties.splice(
+				mi.properties.indexOf(property),
+				1
+			);
+		}
+	}
 
-
-        if (item.startsWith("$")) {
-
-            continue;
-        }
-
-
-        const property =
-            getOwnedProperty(item);
-
-
-        if (property) {
-
-            mi.properties.splice(
-                mi.properties.indexOf(property),
-                1
-            );
-        }
-    }
 
 
 
