@@ -979,7 +979,341 @@ function run() {
 
     setTimeout(run, 1000);
 }
+function getOwnedProperty(name) {
 
+    const normalized = name
+        .toLowerCase()
+        .replaceAll(" ", "")
+        .replaceAll(".", "")
+        .replaceAll(",", "");
+
+    return mi.properties.find(property => {
+
+        const propertyName = property.name
+            .toLowerCase()
+            .replaceAll(" ", "")
+            .replaceAll(".", "")
+            .replaceAll(",", "");
+
+        return normalized.includes(propertyName) ||
+               propertyName.includes(normalized);
+    });
+}
+function tradePropertyValue(property) {
+
+    let value = property.cost;
+
+    // Future rent potential
+    value += property.Hrent / 2;
+
+
+    // Already owns monopoly
+    if (hasMonopoly(property.color)) {
+
+        value += 600;
+    }
+
+
+    // Completing a monopoly
+    const owned =
+        mi.properties.filter(
+            p => p.color === property.color
+        ).length;
+
+
+    const exception =
+        exceptions.find(
+            e => e.color === property.color
+        );
+
+
+    const required =
+        exception ? exception.amount : 3;
+
+
+    if (owned + 1 >= required) {
+
+        value += 500;
+    }
+
+
+    // Buildings
+    value +=
+        property.houses *
+        property.buildCost;
+
+
+    if (property.hotel) {
+
+        value +=
+            property.buildCost * 5;
+    }
+
+
+    // Mortgaged penalty
+    if (property.mortgaged) {
+
+        value -= property.cost / 2;
+    }
+
+
+    return value;
+}
+function evaluateTrade(trade) {
+
+    let score = 0;
+
+
+    // MI receives
+    for (const item of trade.receive) {
+
+
+        if (item.startsWith("$")) {
+
+            score += Number(
+                item.replace("$", "")
+            );
+
+            continue;
+        }
+
+
+        const property =
+            containsProperty(item);
+
+
+        if (property) {
+
+            score +=
+                tradePropertyValue(property);
+        }
+    }
+
+
+
+    // MI gives
+    for (const item of trade.give) {
+
+
+        if (item.startsWith("$")) {
+
+            score -= Number(
+                item.replace("$", "")
+            );
+
+            continue;
+        }
+
+
+        const property =
+            getOwnedProperty(item);
+
+
+        if (property) {
+
+            score -=
+                tradePropertyValue(property);
+        }
+
+        else {
+
+            log(
+                "MI does not own " + item
+            );
+
+            lines++;
+            update();
+
+            return false;
+        }
+    }
+
+
+
+    log(
+        "Trade score: " +
+        Math.round(score)
+    );
+
+    lines++;
+    update();
+
+
+
+    if (score >= 0) {
+
+        log(
+            "MI accepts the trade."
+        );
+
+        lines++;
+        update();
+
+        return true;
+    }
+
+
+    log(
+        "MI declines the trade."
+    );
+
+    lines++;
+    update();
+
+    return false;
+}
+function completeTrade(trade) {
+
+
+    if (!evaluateTrade(trade)) {
+
+        return;
+    }
+
+
+
+    // Remove properties MI gives
+    for (const item of trade.give) {
+
+
+        if (item.startsWith("$")) {
+
+            continue;
+        }
+
+
+        const property =
+            getOwnedProperty(item);
+
+
+        if (property) {
+
+            mi.properties.splice(
+                mi.properties.indexOf(property),
+                1
+            );
+        }
+    }
+
+
+
+    // Add properties MI receives
+    for (const item of trade.receive) {
+
+
+        if (item.startsWith("$")) {
+
+            mi.money += Number(
+                item.replace("$", "")
+            );
+
+            continue;
+        }
+
+
+        const property =
+            containsProperty(item);
+
+
+        if (property) {
+
+            mi.properties.push({
+
+                ...property,
+
+                houses: 0,
+                hotel: false,
+                mortgaged: false
+
+            });
+        }
+    }
+
+
+
+    show();
+
+
+    log(
+        "Trade completed."
+    );
+
+    lines++;
+    update();
+
+
+    buyHouses();
+}
+function processTrade(command) {
+
+
+    command =
+        command
+        .replace("trade", "")
+        .trim();
+
+
+
+    const sections =
+        command.split(" receive ");
+
+
+
+    if (sections.length !== 2) {
+
+        log(
+            "Use: trade give X receive Y"
+        );
+
+        lines++;
+        update();
+
+        return;
+    }
+
+
+
+    let give =
+        sections[0]
+        .replace("give", "")
+        .trim();
+
+
+
+    let receive =
+        sections[1]
+        .trim();
+
+
+
+    function splitItems(text) {
+
+
+        return text
+            .replaceAll(",", " and ")
+            .split(" and ")
+            .map(item => item.trim())
+            .filter(item => item.length > 0);
+
+    }
+
+
+
+    const trade = {
+
+        give:
+            splitItems(give),
+
+
+        receive:
+            splitItems(receive)
+
+    };
+
+
+
+    completeTrade(trade);
+}
 function runVoiceCommand() {
 
     const text =
@@ -996,6 +1330,13 @@ function processVoice(text) {
 
     let command = text.trim();
 
+
+    if (command.includes("trade")) {
+
+        processTrade(command);
+
+        return;
+    }
 
     //--------------------------------------------------
     // PAY
