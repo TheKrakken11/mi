@@ -1039,11 +1039,11 @@ function tradePropertyValue(property) {
 
     // Buildings
     value +=
-        property.houses *
+        (property.houses || 0) *
         property.buildCost;
 
 
-    if (property.hotel) {
+    if (property.hotel === true) {
 
         value +=
             property.buildCost * 5;
@@ -1063,8 +1063,52 @@ function evaluateTrade(trade) {
 
     let score = 0;
 
+    let givingProperties = [];
+    let receivingProperties = [];
 
-    // MI receives
+    //--------------------------------------------------
+    // Validate and collect properties MI gives
+    //--------------------------------------------------
+
+    for (const item of trade.give) {
+
+        if (item.startsWith("$")) {
+
+            score -= Number(
+                item.replace("$", "")
+            );
+
+            continue;
+        }
+
+
+        const property = getOwnedProperty(item);
+
+
+        if (!property) {
+
+            log(
+                "MI does not own " + item
+            );
+
+            lines++;
+            update();
+
+            return false;
+        }
+
+
+        givingProperties.push(property);
+
+        score -= tradePropertyValue(property);
+    }
+
+
+
+    //--------------------------------------------------
+    // Evaluate what MI receives
+    //--------------------------------------------------
+
     for (const item of trade.receive) {
 
 
@@ -1082,43 +1126,10 @@ function evaluateTrade(trade) {
             containsProperty(item);
 
 
-        if (property) {
-
-            score +=
-                tradePropertyValue(property);
-        }
-    }
-
-
-
-    // MI gives
-    for (const item of trade.give) {
-
-
-        if (item.startsWith("$")) {
-
-            score -= Number(
-                item.replace("$", "")
-            );
-
-            continue;
-        }
-
-
-        const property =
-            getOwnedProperty(item);
-
-
-        if (property) {
-
-            score -=
-                tradePropertyValue(property);
-        }
-
-        else {
+        if (!property) {
 
             log(
-                "MI does not own " + item
+                "Unknown property: " + item
             );
 
             lines++;
@@ -1126,9 +1137,141 @@ function evaluateTrade(trade) {
 
             return false;
         }
+
+
+        receivingProperties.push(property);
+
+        score += tradePropertyValue(property);
     }
 
 
+
+    //--------------------------------------------------
+    // Monopoly completion bonuses
+    //--------------------------------------------------
+
+    for (const property of receivingProperties) {
+
+
+        const currentOwned =
+            mi.properties.filter(
+                p => p.color === property.color
+            ).length;
+
+
+        const exception =
+            exceptions.find(
+                e => e.color === property.color
+            );
+
+
+        const required =
+            exception ?
+            exception.amount :
+            3;
+
+
+        // Completing monopoly
+        if (currentOwned + 1 >= required) {
+
+            score += 750;
+
+        }
+
+        // Almost completing monopoly
+        else if (currentOwned === required - 2) {
+
+            score += 250;
+
+        }
+    }
+
+
+
+    //--------------------------------------------------
+    // Breaking monopolies is very bad
+    //--------------------------------------------------
+
+    for (const property of givingProperties) {
+
+
+        const owned =
+            mi.properties.filter(
+                p => p.color === property.color
+            ).length;
+
+
+        const exception =
+            exceptions.find(
+                e => e.color === property.color
+            );
+
+
+        const required =
+            exception ?
+            exception.amount :
+            3;
+
+
+        // Losing a monopoly
+        if (owned >= required) {
+
+            score -= 1000;
+
+        }
+
+        // Giving away a key piece of a monopoly
+        else if (owned === required - 1) {
+
+            score -= 400;
+
+        }
+    }
+
+
+
+    //--------------------------------------------------
+    // Cash safety check
+    //--------------------------------------------------
+
+    let cashAfterTrade = mi.money;
+
+
+    for (const item of trade.give) {
+
+        if (item.startsWith("$")) {
+
+            cashAfterTrade -= Number(
+                item.replace("$", "")
+            );
+        }
+    }
+
+
+    for (const item of trade.receive) {
+
+        if (item.startsWith("$")) {
+
+            cashAfterTrade += Number(
+                item.replace("$", "")
+            );
+        }
+    }
+
+
+
+    // MI refuses trades that make it vulnerable
+    if (cashAfterTrade < 100) {
+
+        score -= 500;
+
+    }
+
+
+
+    //--------------------------------------------------
+    // Final decision
+    //--------------------------------------------------
 
     log(
         "Trade score: " +
