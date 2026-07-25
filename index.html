@@ -1061,20 +1061,20 @@ function tradePropertyValue(property) {
 }
 function evaluateTrade(trade) {
 
-    let score = 0;
+    let receiveValue = 0;
+    let giveValue = 0;
 
-    let givingProperties = [];
-    let receivingProperties = [];
 
     //--------------------------------------------------
-    // Validate and collect properties MI gives
+    // Evaluate what MI gives
     //--------------------------------------------------
 
     for (const item of trade.give) {
 
         if (item.startsWith("$")) {
 
-            score -= Number(
+            // Cash is worth exactly its amount
+            giveValue += Number(
                 item.replace("$", "")
             );
 
@@ -1087,9 +1087,7 @@ function evaluateTrade(trade) {
 
         if (!property) {
 
-            log(
-                "MI does not own " + item
-            );
+            log("MI does not own " + item);
 
             lines++;
             update();
@@ -1098,9 +1096,17 @@ function evaluateTrade(trade) {
         }
 
 
-        givingProperties.push(property);
+        let value = tradePropertyValue(property);
 
-        score -= tradePropertyValue(property);
+
+        // Strong penalty for losing monopolies
+        if (hasMonopoly(property.color)) {
+
+            value += 1000;
+        }
+
+
+        giveValue += value;
     }
 
 
@@ -1114,7 +1120,7 @@ function evaluateTrade(trade) {
 
         if (item.startsWith("$")) {
 
-            score += Number(
+            receiveValue += Number(
                 item.replace("$", "")
             );
 
@@ -1122,15 +1128,12 @@ function evaluateTrade(trade) {
         }
 
 
-        const property =
-            containsProperty(item);
+        const property = containsProperty(item);
 
 
         if (!property) {
 
-            log(
-                "Unknown property: " + item
-            );
+            log("Unknown property " + item);
 
             lines++;
             update();
@@ -1139,61 +1142,17 @@ function evaluateTrade(trade) {
         }
 
 
-        receivingProperties.push(property);
-
-        score += tradePropertyValue(property);
-    }
-
-
-
-    //--------------------------------------------------
-    // Monopoly completion bonuses
-    //--------------------------------------------------
-
-    for (const property of receivingProperties) {
+        let value = tradePropertyValue({
+            ...property,
+            houses: 0,
+            hotel: false,
+            mortgaged: false
+        });
 
 
-        const currentOwned =
-            mi.properties.filter(
-                p => p.color === property.color
-            ).length;
-
-
-        const exception =
-            exceptions.find(
-                e => e.color === property.color
-            );
-
-
-        const required =
-            exception ?
-            exception.amount :
-            3;
-
-
-        // Completing monopoly
-        if (currentOwned + 1 >= required) {
-
-            score += 750;
-
-        }
-
-        // Almost completing monopoly
-        else if (currentOwned === required - 2) {
-
-            score += 250;
-
-        }
-    }
-
-
-
-    //--------------------------------------------------
-    // Breaking monopolies is very bad
-    //--------------------------------------------------
-
-    for (const property of givingProperties) {
-
+        //--------------------------------------------------
+        // Monopoly completion bonus
+        //--------------------------------------------------
 
         const owned =
             mi.properties.filter(
@@ -1213,58 +1172,70 @@ function evaluateTrade(trade) {
             3;
 
 
-        // Losing a monopoly
-        if (owned >= required) {
+        if (owned + 1 >= required) {
 
-            score -= 1000;
+            value += 750;
 
         }
-
-        // Giving away a key piece of a monopoly
         else if (owned === required - 1) {
 
-            score -= 400;
+            value += 300;
 
         }
+
+
+        receiveValue += value;
     }
 
 
 
     //--------------------------------------------------
-    // Cash safety check
+    // Require a meaningful advantage
     //--------------------------------------------------
 
-    let cashAfterTrade = mi.money;
-
-
-    for (const item of trade.give) {
-
-        if (item.startsWith("$")) {
-
-            cashAfterTrade -= Number(
-                item.replace("$", "")
-            );
-        }
-    }
-
-
-    for (const item of trade.receive) {
-
-        if (item.startsWith("$")) {
-
-            cashAfterTrade += Number(
-                item.replace("$", "")
-            );
-        }
-    }
+    const advantage =
+        receiveValue - giveValue;
 
 
 
-    // MI refuses trades that make it vulnerable
-    if (cashAfterTrade < 100) {
+    log(
+        "Trade received value: " +
+        Math.round(receiveValue)
+    );
 
-        score -= 500;
+    log(
+        "Trade given value: " +
+        Math.round(giveValue)
+    );
 
+    log(
+        "Trade advantage: " +
+        Math.round(advantage)
+    );
+
+
+    lines += 3;
+    update();
+
+
+
+    //--------------------------------------------------
+    // Cash trades need to be very favorable
+    //--------------------------------------------------
+
+    if (
+        trade.give.some(item => item.startsWith("$")) &&
+        advantage < 250
+    ) {
+
+        log(
+            "MI declines because the cash price is too high."
+        );
+
+        lines++;
+        update();
+
+        return false;
     }
 
 
@@ -1273,17 +1244,7 @@ function evaluateTrade(trade) {
     // Final decision
     //--------------------------------------------------
 
-    log(
-        "Trade score: " +
-        Math.round(score)
-    );
-
-    lines++;
-    update();
-
-
-
-    if (score >= 0) {
+    if (advantage >= 0) {
 
         log(
             "MI accepts the trade."
@@ -1305,6 +1266,7 @@ function evaluateTrade(trade) {
 
     return false;
 }
+
 function completeTrade(trade) {
 
 
