@@ -1202,20 +1202,22 @@ function evaluateTrade(trade) {
         "Trade received value: " +
         Math.round(receiveValue)
     );
-
+    lines ++;
+    update();
     log(
         "Trade given value: " +
         Math.round(giveValue)
     );
-
+    lines ++;
+    update();
     log(
         "Trade advantage: " +
         Math.round(advantage)
     );
-
-
-    lines += 3;
+	lines ++;
     update();
+
+
 
 
 
