@@ -1143,24 +1143,32 @@ function suggestTrades() {
 
         const color = property.color;
 
-        if (hasMonopoly(color))
+        if (hasMonopoly(color)) {
             continue;
+        }
+
 
         const owned =
             mi.properties.filter(
                 p => p.color === color
             ).length;
 
+
         const exception =
             exceptions.find(
                 e => e.color === color
             );
 
+
         const required =
             exception ? exception.amount : 3;
 
-        if (owned !== required - 1)
+
+        // Only look for a missing final piece
+        if (owned !== required - 1) {
             continue;
+        }
+
 
         const missing =
             monopolyProperties.find(p =>
@@ -1168,29 +1176,146 @@ function suggestTrades() {
                 !getOwnedProperty(p.name)
             );
 
-        if (!missing)
+
+        if (!missing) {
             continue;
+        }
+
 
         const owner =
             propertyOwners[missing.name];
 
-        if (!owner)
+
+        if (!owner) {
             continue;
+        }
+
+
+
+        //--------------------------------------------------
+        // Build possible offers
+        //--------------------------------------------------
+
+        let offer = [];
+
+
+        // Offer cash first
+        const cashOffer =
+            Math.min(
+                300,
+                Math.floor(mi.money / 2)
+            );
+
+
+        if (cashOffer > 0) {
+
+            offer.push(
+                "$" + cashOffer
+            );
+
+        }
+
+
+
+        // Offer a duplicate / lower value property
+        const tradeProperty =
+            mi.properties
+            .filter(p =>
+                p.color !== color &&
+                !hasMonopoly(p.color)
+            )
+            .sort((a,b) =>
+                tradePropertyValue(a) -
+                tradePropertyValue(b)
+            )[0];
+
+
+        if (tradeProperty) {
+
+            offer.push(
+                tradeProperty.name
+            );
+
+        }
+
+
+
+        //--------------------------------------------------
+        // What MI receives
+        //--------------------------------------------------
+
+        const trade = {
+
+            give: offer,
+
+            receive: [
+                missing.name
+            ]
+
+        };
+
+
+
+        //--------------------------------------------------
+        // Log proposal
+        //--------------------------------------------------
 
         log(
-            "Trade Opportunity: " +
+            "MI proposes trade to " +
             owner +
-            " owns " +
-            missing.name +
-            " which completes your " +
-            color +
-            " monopoly."
+            ":"
         );
 
         lines++;
         update();
+
+
+        log(
+            "Give: " +
+            trade.give.join(" + ")
+        );
+
+        lines++;
+        update();
+
+
+        log(
+            "Receive: " +
+            trade.receive.join(" + ")
+        );
+
+        lines++;
+        update();
+
+
+
+        //--------------------------------------------------
+        // Test the trade
+        //--------------------------------------------------
+
+        if (evaluateTrade(trade)) {
+
+            log(
+                "MI believes this trade is favorable."
+            );
+
+        } else {
+
+            log(
+                "MI believes this trade is favorable." //tricky
+            );
+
+        }
+
+
+        lines++;
+        update();
+
+
+        return;
     }
 }
+
 function getOwnedProperty(name) {
 
     const normalized = name
