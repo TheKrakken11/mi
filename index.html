@@ -1044,6 +1044,67 @@ function run() {
 
     setTimeout(run, 1000);
 }
+function setOwner(propertyName, owner) {
+
+    const property = containsProperty(propertyName);
+
+    if (!property) {
+
+        log("Unknown property: " + propertyName);
+
+        lines++;
+        update();
+
+        return;
+    }
+
+
+    propertyOwners[property.name] = owner;
+
+
+    log(
+        owner + " owns " + property.name
+    );
+
+    lines++;
+    update();
+
+
+    suggestTrades();
+}
+function transferOwner(propertyName, newOwner) {
+
+    const property =
+        containsProperty(propertyName);
+
+
+    if (!property) {
+
+        log("Unknown property: " + propertyName);
+
+        lines++;
+        update();
+
+        return;
+    }
+
+
+    propertyOwners[property.name] = newOwner;
+
+
+    log(
+        property.name +
+        " transferred to " +
+        newOwner
+    );
+
+    lines++;
+    update();
+
+
+    suggestTrades();
+}
+
 function updateOwner(propertyName, owner) {
 
     const property = containsProperty(propertyName);
@@ -1594,30 +1655,53 @@ function processVoice(text) {
     let command = text.trim();
 
 
-
     //--------------------------------------------------
-    // PROPERTY OWNERSHIP
+    // SET PROPERTY OWNER
+    // Example: owner Joe Boardwalk
     //--------------------------------------------------
 
-    const ownershipMatch =
-        command.match(/^(.+?)\s+(owns|own|has|got|bought)\s+(.+)$/);
+    const ownerMatch =
+        command.match(/^owner (.+?) (.+)$/);
 
 
-    if (ownershipMatch) {
+    if (ownerMatch) {
 
         const player =
-            ownershipMatch[1].trim();
+            ownerMatch[1].trim();
 
 
         const propertyName =
-            ownershipMatch[3].trim();
+            ownerMatch[2].trim();
 
 
-        updateOwner(
-            propertyName,
-            player
+        if (containsProperty(propertyName)) {
+
+            setOwner(
+                propertyName,
+                player
+            );
+
+            return;
+        }
+    }
+
+
+
+    //--------------------------------------------------
+    // TRANSFER PROPERTY OWNER
+    // Example: transfer Boardwalk to Joe
+    //--------------------------------------------------
+
+    const transferMatch =
+        command.match(/^transfer (.+?) to (.+)$/);
+
+
+    if (transferMatch) {
+
+        transferOwner(
+            transferMatch[1].trim(),
+            transferMatch[2].trim()
         );
-
 
         return;
     }
@@ -1707,7 +1791,8 @@ function processVoice(text) {
     ) {
 
 
-        if (command.includes("property"))
+        // Prevent "got Boardwalk" from becoming money
+        if (containsProperty(command))
             return;
 
 
@@ -1784,6 +1869,19 @@ function processVoice(text) {
 
         return;
     }
+
+
+
+    //--------------------------------------------------
+    // UNKNOWN COMMAND
+    //--------------------------------------------------
+
+    log(
+        "MI did not understand: " + command
+    );
+
+    lines++;
+    update();
 }
 
 
