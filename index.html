@@ -1147,24 +1147,21 @@ function suggestTrades() {
             continue;
         }
 
-
         const owned =
             mi.properties.filter(
                 p => p.color === color
             ).length;
-
 
         const exception =
             exceptions.find(
                 e => e.color === color
             );
 
-
         const required =
             exception ? exception.amount : 3;
 
 
-        // Only look for a missing final piece
+        // Need exactly one piece missing
         if (owned !== required - 1) {
             continue;
         }
@@ -1193,13 +1190,13 @@ function suggestTrades() {
 
 
         //--------------------------------------------------
-        // Build possible offers
+        // Build possible offer
         //--------------------------------------------------
 
         let offer = [];
 
 
-        // Offer cash first
+        // Offer cash
         const cashOffer =
             Math.min(
                 300,
@@ -1217,7 +1214,7 @@ function suggestTrades() {
 
 
 
-        // Offer a duplicate / lower value property
+        // Offer a non-critical property
         const tradeProperty =
             mi.properties
             .filter(p =>
@@ -1240,10 +1237,6 @@ function suggestTrades() {
 
 
 
-        //--------------------------------------------------
-        // What MI receives
-        //--------------------------------------------------
-
         const trade = {
 
             give: offer,
@@ -1257,13 +1250,21 @@ function suggestTrades() {
 
 
         //--------------------------------------------------
-        // Log proposal
+        // Test trade silently
+        //--------------------------------------------------
+
+        const favorable =
+            evaluateTrade(trade, false);
+
+
+
+        //--------------------------------------------------
+        // Show only the proposal/result
         //--------------------------------------------------
 
         log(
             "MI proposes trade to " +
-            owner +
-            ":"
+            owner + ":"
         );
 
         lines++;
@@ -1289,11 +1290,7 @@ function suggestTrades() {
 
 
 
-        //--------------------------------------------------
-        // Test the trade
-        //--------------------------------------------------
-
-        if (evaluateTrade(trade)) {
+        if (favorable) {
 
             log(
                 "MI believes this trade is favorable."
@@ -1302,7 +1299,7 @@ function suggestTrades() {
         } else {
 
             log(
-                "MI believes this trade is favorable." //tricky
+                "MI rejects its own proposed trade."
             );
 
         }
@@ -1315,6 +1312,201 @@ function suggestTrades() {
         return;
     }
 }
+
+
+
+function evaluateTrade(trade, showDetails = true) {
+
+    let receiveValue = 0;
+    let giveValue = 0;
+
+
+
+    //--------------------------------------------------
+    // Evaluate what MI gives
+    //--------------------------------------------------
+
+    for (const item of trade.give) {
+
+        if (item.startsWith("$")) {
+
+            giveValue += Number(
+                item.replace("$", "")
+            );
+
+            continue;
+        }
+
+
+        const property =
+            getOwnedProperty(item);
+
+
+        if (!property) {
+
+            return false;
+        }
+
+
+        let value =
+            tradePropertyValue(property);
+
+
+        // Do not willingly break a monopoly
+        if (hasMonopoly(property.color)) {
+
+            value += 1000;
+
+        }
+
+
+        giveValue += value;
+    }
+
+
+
+
+    //--------------------------------------------------
+    // Evaluate what MI receives
+    //--------------------------------------------------
+
+    for (const item of trade.receive) {
+
+        if (item.startsWith("$")) {
+
+            receiveValue += Number(
+                item.replace("$", "")
+            );
+
+            continue;
+        }
+
+
+        const property =
+            containsProperty(item);
+
+
+        if (!property) {
+
+            return false;
+        }
+
+
+        let value =
+            tradePropertyValue({
+                ...property,
+                houses: 0,
+                hotel: false,
+                mortgaged: false
+            });
+
+
+
+        const owned =
+            mi.properties.filter(
+                p => p.color === property.color
+            ).length;
+
+
+        const exception =
+            exceptions.find(
+                e => e.color === property.color
+            );
+
+
+        const required =
+            exception ?
+            exception.amount :
+            3;
+
+
+
+        // Completing monopoly bonus
+        if (owned + 1 >= required) {
+
+            value += 750;
+
+        }
+        else if (owned === required - 1) {
+
+            value += 300;
+
+        }
+
+
+        receiveValue += value;
+    }
+
+
+
+
+    const advantage =
+        receiveValue - giveValue;
+
+
+
+
+    //--------------------------------------------------
+    // Only show analysis when manually testing
+    //--------------------------------------------------
+
+    if (showDetails) {
+
+        log(
+            "Trade received value: " +
+            Math.round(receiveValue)
+        );
+
+        lines++;
+        update();
+
+
+        log(
+            "Trade given value: " +
+            Math.round(giveValue)
+        );
+
+        lines++;
+        update();
+
+
+        log(
+            "Trade advantage: " +
+            Math.round(advantage)
+        );
+
+        lines++;
+        update();
+
+    }
+
+
+
+
+    //--------------------------------------------------
+    // Cash trades need extra value
+    //--------------------------------------------------
+
+    if (
+        trade.give.some(item =>
+            item.startsWith("$")
+        ) &&
+        advantage < 250
+    ) {
+
+        return false;
+    }
+
+
+
+
+    //--------------------------------------------------
+    // Final decision
+    //--------------------------------------------------
+
+    return advantage >= 0;
+}
+
 
 function getOwnedProperty(name) {
 
@@ -1395,215 +1587,6 @@ function tradePropertyValue(property) {
 
 
     return value;
-}
-function evaluateTrade(trade) {
-
-    let receiveValue = 0;
-    let giveValue = 0;
-
-
-    //--------------------------------------------------
-    // Evaluate what MI gives
-    //--------------------------------------------------
-
-    for (const item of trade.give) {
-
-        if (item.startsWith("$")) {
-
-            // Cash is worth exactly its amount
-            giveValue += Number(
-                item.replace("$", "")
-            );
-
-            continue;
-        }
-
-
-        const property = getOwnedProperty(item);
-
-
-        if (!property) {
-
-            log("MI does not own " + item);
-
-            lines++;
-            update();
-
-            return false;
-        }
-
-
-        let value = tradePropertyValue(property);
-
-
-        // Strong penalty for losing monopolies
-        if (hasMonopoly(property.color)) {
-
-            value += 1000;
-        }
-
-
-        giveValue += value;
-    }
-
-
-
-    //--------------------------------------------------
-    // Evaluate what MI receives
-    //--------------------------------------------------
-
-    for (const item of trade.receive) {
-
-
-        if (item.startsWith("$")) {
-
-            receiveValue += Number(
-                item.replace("$", "")
-            );
-
-            continue;
-        }
-
-
-        const property = containsProperty(item);
-
-
-        if (!property) {
-
-            log("Unknown property " + item);
-
-            lines++;
-            update();
-
-            return false;
-        }
-
-
-        let value = tradePropertyValue({
-            ...property,
-            houses: 0,
-            hotel: false,
-            mortgaged: false
-        });
-
-
-        //--------------------------------------------------
-        // Monopoly completion bonus
-        //--------------------------------------------------
-
-        const owned =
-            mi.properties.filter(
-                p => p.color === property.color
-            ).length;
-
-
-        const exception =
-            exceptions.find(
-                e => e.color === property.color
-            );
-
-
-        const required =
-            exception ?
-            exception.amount :
-            3;
-
-
-        if (owned + 1 >= required) {
-
-            value += 750;
-
-        }
-        else if (owned === required - 1) {
-
-            value += 300;
-
-        }
-
-
-        receiveValue += value;
-    }
-
-
-
-    //--------------------------------------------------
-    // Require a meaningful advantage
-    //--------------------------------------------------
-
-    const advantage =
-        receiveValue - giveValue;
-
-
-
-    log(
-        "Trade received value: " +
-        Math.round(receiveValue)
-    );
-    lines ++;
-    update();
-    log(
-        "Trade given value: " +
-        Math.round(giveValue)
-    );
-    lines ++;
-    update();
-    log(
-        "Trade advantage: " +
-        Math.round(advantage)
-    );
-	lines ++;
-    update();
-
-
-
-
-
-    //--------------------------------------------------
-    // Cash trades need to be very favorable
-    //--------------------------------------------------
-
-    if (
-        trade.give.some(item => item.startsWith("$")) &&
-        advantage < 250
-    ) {
-
-        log(
-            "MI declines because the cash price is too high."
-        );
-
-        lines++;
-        update();
-
-        return false;
-    }
-
-
-
-    //--------------------------------------------------
-    // Final decision
-    //--------------------------------------------------
-
-    if (advantage >= 0) {
-
-        log(
-            "MI accepts the trade."
-        );
-
-        lines++;
-        update();
-
-        return true;
-    }
-
-
-    log(
-        "MI declines the trade."
-    );
-
-    lines++;
-    update();
-
-    return false;
 }
 
 function completeTrade(trade) {
