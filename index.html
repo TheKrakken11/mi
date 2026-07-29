@@ -58,6 +58,7 @@ Run Command
 
 	
 <script>
+let propertyOwners = {};
 let mi = {
     money: 1500,
     properties: []
@@ -521,52 +522,114 @@ function property() {
     evaluateProperty(property);
 }
 function addProperty() {
+
     const match = containsProperty(
         document.getElementById("propertyName").value
     );
 
+
     if (match) {
+
         log("MI receives " + match.name);
+
         lines++;
         update();
 
+
         mi.properties.push({
+
             ...match,
+
             houses: 0,
             hotel: false,
             mortgaged: false
+
         });
 
+
+        // MI owns it now
+        delete propertyOwners[match.name];
+
+
         buyHouses();
+
         return;
     }
 
+
+
     const property = {
+
         color: document.getElementById("propertyColor").value,
+
         name: document.getElementById("propertyName").value,
-        cost: Number(document.getElementById("propertyCost").value),
-        rent: Number(document.getElementById("baseRent").value),
-        rentFull: Number(document.getElementById("baseRent").value) * 2,
-        rent1: Number(document.getElementById("1Rent").value),
-        rent2: Number(document.getElementById("2Rent").value),
-        rent3: Number(document.getElementById("3Rent").value),
-        rent4: Number(document.getElementById("4Rent").value),
-        Hrent: Number(document.getElementById("HRent").value),
-        buildCost: Number(document.getElementById("buildCost").value),
+
+        cost: Number(
+            document.getElementById("propertyCost").value
+        ),
+
+        rent: Number(
+            document.getElementById("baseRent").value
+        ),
+
+        rentFull:
+            Number(
+                document.getElementById("baseRent").value
+            ) * 2,
+
+        rent1: Number(
+            document.getElementById("1Rent").value
+        ),
+
+        rent2: Number(
+            document.getElementById("2Rent").value
+        ),
+
+        rent3: Number(
+            document.getElementById("3Rent").value
+        ),
+
+        rent4: Number(
+            document.getElementById("4Rent").value
+        ),
+
+        Hrent: Number(
+            document.getElementById("HRent").value
+        ),
+
+        buildCost: Number(
+            document.getElementById("buildCost").value
+        ),
+
 
         houses: 0,
+
         hotel: false,
+
         mortgaged: false
+
     };
 
+
+
     log("MI receives " + property.name);
+
     lines++;
+
     update();
+
+
 
     mi.properties.push(property);
 
+
+    // MI owns it now
+    delete propertyOwners[property.name];
+
+
     buyHouses();
 }
+
 function auctionProperty() {
     const match = containsProperty(
         document.getElementById("propertyName").value
@@ -963,6 +1026,8 @@ function buy(property) {
     };
 
     mi.properties.push(ownedProperty);
+	delete propertyOwners[property.name];
+
     mi.money -= property.cost;
 
     show();
@@ -978,6 +1043,92 @@ function run() {
     buyHouses();
 
     setTimeout(run, 1000);
+}
+function updateOwner(propertyName, owner) {
+
+    const property = containsProperty(propertyName);
+
+    if (!property) {
+
+        log("Unknown property: " + propertyName);
+
+        lines++;
+        update();
+
+        return;
+    }
+
+    propertyOwners[property.name] = owner;
+
+    log(owner + " now owns " + property.name);
+
+    lines++;
+    update();
+
+    suggestTrades();
+}
+function getPropertyOwner(propertyName) {
+
+    const property = containsProperty(propertyName);
+
+    if (!property)
+        return null;
+
+    return propertyOwners[property.name] || null;
+}
+function suggestTrades() {
+
+    for (const property of monopolyProperties) {
+
+        const color = property.color;
+
+        if (hasMonopoly(color))
+            continue;
+
+        const owned =
+            mi.properties.filter(
+                p => p.color === color
+            ).length;
+
+        const exception =
+            exceptions.find(
+                e => e.color === color
+            );
+
+        const required =
+            exception ? exception.amount : 3;
+
+        if (owned !== required - 1)
+            continue;
+
+        const missing =
+            monopolyProperties.find(p =>
+                p.color === color &&
+                !getOwnedProperty(p.name)
+            );
+
+        if (!missing)
+            continue;
+
+        const owner =
+            propertyOwners[missing.name];
+
+        if (!owner)
+            continue;
+
+        log(
+            "Trade Opportunity: " +
+            owner +
+            " owns " +
+            missing.name +
+            " which completes your " +
+            color +
+            " monopoly."
+        );
+
+        lines++;
+        update();
+    }
 }
 function getOwnedProperty(name) {
 
@@ -1281,26 +1432,27 @@ function completeTrade(trade) {
 
     // Remove properties MI gives
     for (const item of trade.give) {
-		
-		if (item.startsWith("$")) {
-			
-			mi.money -= Number(
-				item.replace("$", "")
-			);
-			
-			continue;
-		}
-		
-		const property = getOwnedProperty(item);
-		
-		if (property) {
-			
-			mi.properties.splice(
-				mi.properties.indexOf(property),
-				1
-			);
-		}
-	}
+
+        if (item.startsWith("$")) {
+
+            mi.money -= Number(
+                item.replace("$", "")
+            );
+
+            continue;
+        }
+
+
+        const property = getOwnedProperty(item);
+
+        if (property) {
+
+            mi.properties.splice(
+                mi.properties.indexOf(property),
+                1
+            );
+        }
+    }
 
 
 
@@ -1334,6 +1486,9 @@ function completeTrade(trade) {
                 mortgaged: false
 
             });
+
+            // MI now owns this property
+            delete propertyOwners[property.name];
         }
     }
 
@@ -1439,6 +1594,40 @@ function processVoice(text) {
     let command = text.trim();
 
 
+
+    //--------------------------------------------------
+    // PROPERTY OWNERSHIP
+    //--------------------------------------------------
+
+    const ownershipMatch =
+        command.match(/^(.+?)\s+(owns|own|has|got|bought)\s+(.+)$/);
+
+
+    if (ownershipMatch) {
+
+        const player =
+            ownershipMatch[1].trim();
+
+
+        const propertyName =
+            ownershipMatch[3].trim();
+
+
+        updateOwner(
+            propertyName,
+            player
+        );
+
+
+        return;
+    }
+
+
+
+    //--------------------------------------------------
+    // TRADE
+    //--------------------------------------------------
+
     if (command.includes("trade")) {
 
         processTrade(command);
@@ -1446,24 +1635,32 @@ function processVoice(text) {
         return;
     }
 
+
+
     //--------------------------------------------------
     // PAY
     //--------------------------------------------------
 
     if (command.includes("pay")) {
 
-        const number = command.match(/\d+/);
+        const number =
+            command.match(/\d+/);
+
 
         if (number) {
 
             document.getElementById("payInput").value =
                 Number(number[0]);
 
+
             payMoney();
         }
 
+
         return;
     }
+
+
 
     //--------------------------------------------------
     // RECEIVE PROPERTY
@@ -1472,23 +1669,31 @@ function processVoice(text) {
     if (
         command.includes("receive property") ||
         command.includes("received property") ||
-        command.includes("buy property") ||
-        command.includes("bought")
+        command.includes("buy property")
     ) {
 
+
         let propertyName = command
+
             .replace(/.*receive(d)? property/, "")
+
             .replace(/.*buy property/, "")
-            .replace(/.*bought/, "")
+
             .trim();
+
+
 
         document.getElementById("propertyName").value =
             propertyName;
 
+
         addProperty();
+
 
         return;
     }
+
+
 
     //--------------------------------------------------
     // RECEIVE MONEY
@@ -1501,22 +1706,28 @@ function processVoice(text) {
         command.includes("got")
     ) {
 
-        // Don't mistake "receive property" for money
+
         if (command.includes("property"))
             return;
 
-        const number = command.match(/\d+/);
+
+        const number =
+            command.match(/\d+/);
+
 
         if (number) {
 
             document.getElementById("moneyInput").value =
                 Number(number[0]);
 
+
             receiveMoney();
         }
 
+
         return;
     }
+
 
 
     //--------------------------------------------------
@@ -1528,17 +1739,26 @@ function processVoice(text) {
         command.includes("landed on")
     ) {
 
+
         let propertyName = command
+
             .replace(/.*land(ed)? on/, "")
+
             .trim();
+
+
 
         document.getElementById("propertyName").value =
             propertyName;
 
+
         property();
+
 
         return;
     }
+
+
 
     //--------------------------------------------------
     // AUCTION
@@ -1546,18 +1766,26 @@ function processVoice(text) {
 
     if (command.includes("auction")) {
 
+
         let propertyName = command
+
             .replace(/.*auction/, "")
+
             .trim();
+
+
 
         document.getElementById("propertyName").value =
             propertyName;
 
+
         auctionProperty();
+
 
         return;
     }
 }
+
 
 
 run();
