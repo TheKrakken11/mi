@@ -1667,11 +1667,11 @@ function processVoice(text) {
     if (ownerMatch) {
 
         const player =
-            ownerMatch[1].trim();
+            ownerMatch[2].trim();
 
 
         const propertyName =
-            ownerMatch[2].trim();
+            ownerMatch[1].trim();
 
 
         if (containsProperty(propertyName)) {
