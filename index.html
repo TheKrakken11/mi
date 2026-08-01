@@ -59,6 +59,7 @@ Run Command
 	
 <script>
 let propertyOwners = {};
+let used = [];
 let mi = {
     money: 1500,
     properties: []
@@ -1041,6 +1042,8 @@ function buy(property) {
 function run() {
     mortgage();
     buyHouses();
+	const trade = suggestTrades();
+	if (trade) used.push(trade);
 
     setTimeout(run, 1000);
 }
@@ -1069,8 +1072,6 @@ function setOwner(propertyName, owner) {
     lines++;
     update();
 
-
-    suggestTrades();
 }
 function transferOwner(propertyName, newOwner) {
 
@@ -1101,8 +1102,6 @@ function transferOwner(propertyName, newOwner) {
     lines++;
     update();
 
-
-    suggestTrades();
 }
 
 function updateOwner(propertyName, owner) {
@@ -1125,8 +1124,6 @@ function updateOwner(propertyName, owner) {
 
     lines++;
     update();
-
-    suggestTrades();
 }
 function getPropertyOwner(propertyName) {
 
@@ -1247,6 +1244,10 @@ function suggestTrades() {
             ]
 
         };
+		
+		if (used.some(item => JSON.stringify(item) === JSON.stringify(trade))) {
+			return false;
+		}
 
 
 
@@ -1310,7 +1311,7 @@ function suggestTrades() {
         update();
 
 
-        return;
+        return trade;
     }
 }
 
