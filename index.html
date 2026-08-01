@@ -637,10 +637,7 @@ function auctionProperty() {
     );
 
     if (match) {
-	let auctionMax = Math.round(match.cost * (2/3));
-        if (mi.money - auctionMax <= 200) {
-	    auctionMax += 200 - (mi.money - auctionMax);
-        }
+	    let auctionMax = Math.max(10, Math.min(Math.round(property.cost * (2/3)), mi.money - 200));
         log("MI auctions " + match.name + ", MI will at maximum bid $" + auctionMax);
         lines++;
         update();
