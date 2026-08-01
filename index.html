@@ -1219,7 +1219,8 @@ function suggestTrades() {
             mi.properties
             .filter(p =>
                 p.color !== color &&
-                !hasMonopoly(p.color)
+                !hasMonopoly(p.color) &&
+				p.hrent < 1000
             )
             .sort((a,b) =>
                 tradePropertyValue(a) -
