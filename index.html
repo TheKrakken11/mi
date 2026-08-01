@@ -1199,8 +1199,8 @@ function suggestTrades() {
         // Offer cash
         const cashOffer =
             Math.min(
-                300,
-                Math.floor(mi.money / 2)
+                600,
+                Math.min(tradePropertyValue(missing) - 300, mi.money - 250)
             );
 
 
