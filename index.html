@@ -632,19 +632,12 @@ function addProperty() {
 }
 
 function auctionProperty() {
+
     const match = containsProperty(
         document.getElementById("propertyName").value
     );
 
-    if (match) {
-	    let auctionMax = Math.max(10, Math.min(Math.round(property.cost * (2/3)), mi.money - 200));
-        log("MI auctions " + match.name + ", MI will at maximum bid $" + auctionMax);
-        lines++;
-        update();
-        return;
-    }
-
-    const property = {
+    const property = match ? match : {
         color: document.getElementById("propertyColor").value,
         name: document.getElementById("propertyName").value,
         cost: Number(document.getElementById("propertyCost").value),
@@ -657,38 +650,318 @@ function auctionProperty() {
         Hrent: Number(document.getElementById("HRent").value),
         buildCost: Number(document.getElementById("buildCost").value)
     };
-    let auctionMax = Math.max(10, Math.min(Math.round(property.cost * (2/3)), mi.money - 200));
-    log("MI auctions " + property.name + ", MI will at maximum bid $" + auctionMax);
+
+    //--------------------------------------------------
+    // Property evaluation
+    //--------------------------------------------------
+
+    const value = tradePropertyValue(property);
+
+    const owned =
+        mi.properties.filter(
+            p => p.color === property.color
+        ).length;
+
+    const exception =
+        exceptions.find(
+            e => e.color === property.color
+        );
+
+    const required =
+        exception ? exception.amount : 3;
+
+    const completesMonopoly =
+        owned + 1 >= required;
+
+    //--------------------------------------------------
+    // Does this block another player?
+    //--------------------------------------------------
+
+    let blocksOpponent = false;
+
+    if (propertyOwners) {
+
+        const owners = {};
+
+        for (const [name, owner] of Object.entries(propertyOwners)) {
+
+            const p = containsProperty(name);
+
+            if (!p) continue;
+
+            if (!owners[owner])
+                owners[owner] = {};
+
+            owners[owner][p.color] =
+                (owners[owner][p.color] || 0) + 1;
+        }
+
+        for (const owner in owners) {
+
+            const count =
+                owners[owner][property.color] || 0;
+
+            if (count === required - 1) {
+
+                blocksOpponent = true;
+                break;
+
+            }
+        }
+    }
+
+    //--------------------------------------------------
+    // Reserve cash
+    //--------------------------------------------------
+
+    let reserve = 150;
+
+    if (completesMonopoly)
+        reserve = 25;
+
+    //--------------------------------------------------
+    // Maximum bid
+    //--------------------------------------------------
+
+    let auctionMax;
+
+    if (completesMonopoly) {
+
+        // Almost everything.
+        auctionMax =
+            Math.min(
+                mi.money - reserve,
+                Math.round(value)
+            );
+
+    } else if (blocksOpponent) {
+
+        auctionMax =
+            Math.min(
+                mi.money - 75,
+                Math.round(value * 0.90)
+            );
+
+    } else {
+
+        auctionMax =
+            Math.min(
+                mi.money - reserve,
+                Math.round(value * 0.75)
+            );
+
+    }
+
+    //--------------------------------------------------
+    // Color adjustments
+    //--------------------------------------------------
+
+    switch (property.color) {
+
+        case "orange":
+            auctionMax += 150;
+            break;
+
+        case "red":
+            auctionMax += 100;
+            break;
+
+        case "pink":
+            auctionMax += 50;
+            break;
+
+        case "utility":
+            auctionMax -= 75;
+            break;
+
+        case "railroad":
+            auctionMax += 40;
+            break;
+    }
+
+    //--------------------------------------------------
+    // Clamp values
+    //--------------------------------------------------
+
+    auctionMax = Math.max(10, auctionMax);
+
+    auctionMax = Math.min(
+        auctionMax,
+        mi.money - reserve
+    );
+
+    //--------------------------------------------------
+    // Output
+    //--------------------------------------------------
+
+    log(
+        "MI auctions " +
+        property.name +
+        ", MI will at maximum bid $" +
+        auctionMax
+    );
+
     lines++;
     update();
 }
+
 function evaluateProperty(property) {
-    if (mi.properties.some(obj => obj.color === property.color)) {
-	const count = remainingInSet(property);
-	if (count === 1) {
-	    if (mi.money - property.cost >= 100) {
-		buy(property);
-		return;
-	    }
-	} else {
-	    if (mi.money - property.cost >= 150) {
-		buy(property);
-		return;
-	    }
-	}
+
+    //--------------------------------------------------
+    // How valuable is this property?
+    //--------------------------------------------------
+
+    const value = tradePropertyValue(property);
+
+    //--------------------------------------------------
+    // Cash reserve
+    //--------------------------------------------------
+
+    let reserve = 150;
+
+    // Will this complete a monopoly?
+    const owned =
+        mi.properties.filter(
+            p => p.color === property.color
+        ).length;
+
+    const exception =
+        exceptions.find(
+            e => e.color === property.color
+        );
+
+    const required =
+        exception ? exception.amount : 3;
+
+    const completesMonopoly =
+        owned + 1 >= required;
+
+    //--------------------------------------------------
+    // If it completes a monopoly, become aggressive
+    //--------------------------------------------------
+
+    if (completesMonopoly) {
+
+        reserve = 50;
+
     }
-    if (property.Hrent > 600 && property.Hrent / property.cost >= 4 && mi.money - property.cost >= 250) {
-		if (mi.properties.length < 5 || property.Hrent >= 1500) {
-			buy(property);
-			return;
-		}
+
+    //--------------------------------------------------
+    // Block another player?
+    //--------------------------------------------------
+
+    let blocksOpponent = false;
+
+    if (propertyOwners) {
+
+        const owners = {};
+
+        for (const [name, owner] of Object.entries(propertyOwners)) {
+
+            const p = containsProperty(name);
+
+            if (!p)
+                continue;
+
+            if (!owners[owner])
+                owners[owner] = {};
+
+            owners[owner][p.color] =
+                (owners[owner][p.color] || 0) + 1;
+
+        }
+
+        for (const owner in owners) {
+
+            const count =
+                owners[owner][property.color] || 0;
+
+            if (count === required - 1) {
+
+                blocksOpponent = true;
+                break;
+
+            }
+
+        }
+
     }
-    let auctionMax = Math.max(10, Math.min(Math.round(property.cost * (2/3)), mi.money - 200));
-    log("MI auctions " + property.name + ", MI will at maximum bid $" + auctionMax);
+
+    //--------------------------------------------------
+    // Emergency purchases
+    //--------------------------------------------------
+
+    if (completesMonopoly && mi.money >= property.cost) {
+
+        buy(property);
+        return;
+
+    }
+
+    if (
+        blocksOpponent &&
+        mi.money - property.cost >= 100
+    ) {
+
+        buy(property);
+        return;
+
+    }
+
+    //--------------------------------------------------
+    // Value-based buying
+    //--------------------------------------------------
+
+    const ratio = value / property.cost;
+
+    if (
+        ratio >= 1.45 &&
+        mi.money - property.cost >= reserve
+    ) {
+
+        buy(property);
+        return;
+
+    }
+
+    //--------------------------------------------------
+    // Excellent bargains
+    //--------------------------------------------------
+
+    if (
+        property.cost <= value * 0.55 &&
+        mi.money - property.cost >= reserve
+    ) {
+
+        buy(property);
+        return;
+
+    }
+
+    //--------------------------------------------------
+    // Otherwise auction
+    //--------------------------------------------------
+
+    let auctionMax = Math.max(
+        10,
+        Math.min(
+            Math.round(value * 0.85),
+            mi.money - reserve
+        )
+    );
+
+    log(
+        "MI auctions " +
+        property.name +
+        ", MI will at maximum bid $" +
+        auctionMax
+    );
+
     lines++;
     update();
-    return;
+
 }
+
 function containsProperty(input) {
     const normalizedInput = input
         .toLowerCase()
@@ -1133,13 +1406,14 @@ function getPropertyOwner(propertyName) {
 }
 function suggestTrades() {
 
-    for (const property of monopolyProperties) {
+    //--------------------------------------------------
+    // Search every incomplete color set
+    //--------------------------------------------------
 
-        const color = property.color;
+    for (const color of [...new Set(monopolyProperties.map(p => p.color))]) {
 
-        if (hasMonopoly(color)) {
+        if (hasMonopoly(color))
             continue;
-        }
 
         const owned =
             mi.properties.filter(
@@ -1154,12 +1428,13 @@ function suggestTrades() {
         const required =
             exception ? exception.amount : 3;
 
-
-        // Need exactly one piece missing
-        if (owned !== required - 1) {
+        // Only pursue if exactly one property is missing
+        if (owned !== required - 1)
             continue;
-        }
 
+        //--------------------------------------------------
+        // Find missing property
+        //--------------------------------------------------
 
         const missing =
             monopolyProperties.find(p =>
@@ -1167,150 +1442,177 @@ function suggestTrades() {
                 !getOwnedProperty(p.name)
             );
 
-
-        if (!missing) {
+        if (!missing)
             continue;
-        }
-
 
         const owner =
-            propertyOwners[missing.name];
+            getPropertyOwner(missing.name);
 
-
-        if (!owner) {
+        if (!owner)
             continue;
-        }
-
-
 
         //--------------------------------------------------
-        // Build possible offer
+        // Build candidate assets
         //--------------------------------------------------
 
-        let offer = [];
-
-
-        // Offer cash
-        const cashOffer =
-            Math.min(
-                600,
-                Math.floor(Math.min(tradePropertyValue(missing) / 4.5, mi.money - 250))
-            );
-
-
-        if (cashOffer > 0) {
-
-            offer.push(
-                "$" + cashOffer
-            );
-
-        }
-
-
-
-        // Offer a non-critical property
-        const tradeProperty =
+        let candidates =
             mi.properties
             .filter(p =>
                 p.color !== color &&
-                !hasMonopoly(p.color) &&
-				p.Hrent < 1000
+                !hasMonopoly(p.color)
             )
-            .sort((a,b) =>
-                tradePropertyValue(a) -
+            .sort((a,b)=>
+                tradePropertyValue(a)-
                 tradePropertyValue(b)
-            )[0];
-
-
-        if (tradeProperty) {
-
-            offer.push(
-                tradeProperty.name
             );
+
+        //--------------------------------------------------
+        // Determine cash offer
+        //--------------------------------------------------
+
+        let maxCash =
+            Math.max(
+                0,
+                mi.money - 200
+            );
+
+        let cashOffer = Math.min(
+            700,
+            Math.round(tradePropertyValue(missing)*0.35),
+            maxCash
+        );
+
+        //--------------------------------------------------
+        // Build increasingly aggressive offers
+        //--------------------------------------------------
+
+        const offers = [];
+
+        // Cash only
+        if (cashOffer > 0)
+            offers.push({
+                give:["$"+cashOffer],
+                receive:[missing.name]
+            });
+
+        // Cheapest property
+        if (candidates.length){
+
+            offers.push({
+                give:[
+                    candidates[0].name
+                ],
+                receive:[
+                    missing.name
+                ]
+            });
 
         }
 
+        // Property + cash
+        if (candidates.length && cashOffer>0){
 
+            offers.push({
+                give:[
+                    candidates[0].name,
+                    "$"+cashOffer
+                ],
+                receive:[
+                    missing.name
+                ]
+            });
 
-        const trade = {
+        }
 
-            give: offer,
+        // Two cheap properties
+        if (candidates.length>=2){
 
-            receive: [
-                missing.name
-            ]
+            offers.push({
+                give:[
+                    candidates[0].name,
+                    candidates[1].name
+                ],
+                receive:[
+                    missing.name
+                ]
+            });
 
-        };
-		
-		if (used.some(item => JSON.stringify(item) === JSON.stringify(trade))) {
-			return false;
-		}
+        }
 
+        // Two properties + cash
+        if (candidates.length>=2 && cashOffer>0){
 
+            offers.push({
+                give:[
+                    candidates[0].name,
+                    candidates[1].name,
+                    "$"+cashOffer
+                ],
+                receive:[
+                    missing.name
+                ]
+            });
+
+        }
 
         //--------------------------------------------------
-        // Test trade silently
+        // Find first acceptable offer
         //--------------------------------------------------
 
-        const favorable =
-            evaluateTrade(trade, false);
+        for(const trade of offers){
 
+            if(
+                used.some(item=>
+                    JSON.stringify(item)===
+                    JSON.stringify(trade)
+                )
+            )
+                continue;
 
+            if(!evaluateTrade(trade,false))
+                continue;
 
-        //--------------------------------------------------
-        // Show only the proposal/result
-        //--------------------------------------------------
+            used.push(trade);
 
-        log(
-            "MI proposes trade to " +
-            owner + ":"
-        );
+            log(
+                "MI proposes trade to "+
+                owner+":"
+            );
 
-        lines++;
-        update();
+            lines++;
+            update();
 
+            log(
+                "Give: "+
+                trade.give.join(" + ")
+            );
 
-        log(
-            "Give: " +
-            trade.give.join(" + ")
-        );
+            lines++;
+            update();
 
-        lines++;
-        update();
+            log(
+                "Receive: "+
+                trade.receive.join(" + ")
+            );
 
-
-        log(
-            "Receive: " +
-            trade.receive.join(" + ")
-        );
-
-        lines++;
-        update();
-
-
-
-        if (favorable) {
+            lines++;
+            update();
 
             log(
                 "MI believes this trade is favorable."
             );
 
-        } else {
+            lines++;
+            update();
 
-            log(
-                "MI believes this trade is favorable." //tricky
-            );
-
+            return trade;
         }
 
-
-        lines++;
-        update();
-
-
-        return trade;
     }
+
+    return false;
 }
+
 
 
 
@@ -1318,8 +1620,6 @@ function evaluateTrade(trade, showDetails = true) {
 
     let receiveValue = 0;
     let giveValue = 0;
-
-
 
     //--------------------------------------------------
     // Evaluate what MI gives
@@ -1329,148 +1629,129 @@ function evaluateTrade(trade, showDetails = true) {
 
         if (item.startsWith("$")) {
 
-            giveValue += Number(
-                item.replace("$", "")
-            );
-
+            giveValue += Number(item.replace("$",""));
             continue;
+
         }
 
+        const property = getOwnedProperty(item);
 
-        const property =
-            getOwnedProperty(item);
-
-
-        if (!property) {
-
+        if (!property)
             return false;
-        }
 
+        let value = tradePropertyValue(property);
 
-        let value =
-            tradePropertyValue(property);
-
-
-        // Do not willingly break a monopoly
-        if (hasMonopoly(property.color)) {
-
-            value += 1000;
-
-        }
-
+        // Never willingly break a monopoly
+        if (hasMonopoly(property.color))
+            value += 3000;
 
         giveValue += value;
     }
-
-
-
 
     //--------------------------------------------------
     // Evaluate what MI receives
     //--------------------------------------------------
 
+    let completesMonopoly = false;
+
     for (const item of trade.receive) {
 
         if (item.startsWith("$")) {
 
-            receiveValue += Number(
-                item.replace("$", "")
-            );
-
+            receiveValue += Number(item.replace("$",""));
             continue;
+
         }
 
+        const property = containsProperty(item);
 
-        const property =
-            containsProperty(item);
-
-
-        if (!property) {
-
+        if (!property)
             return false;
-        }
 
-
-        let value =
-            tradePropertyValue({
-                ...property,
-                houses: 0,
-                hotel: false,
-                mortgaged: false
-            });
-
-
+        let value = tradePropertyValue({
+            ...property,
+            houses:0,
+            hotel:false,
+            mortgaged:false
+        });
 
         const owned =
             mi.properties.filter(
-                p => p.color === property.color
+                p=>p.color===property.color
             ).length;
-
 
         const exception =
             exceptions.find(
-                e => e.color === property.color
+                e=>e.color===property.color
             );
 
-
         const required =
-            exception ?
-            exception.amount :
-            3;
+            exception ? exception.amount : 3;
 
+        if (owned + 1 >= required){
 
-
-        // Completing monopoly bonus
-        if (owned + 1 >= required) {
-
-            value += 750;
+            value += 3500;
+            completesMonopoly = true;
 
         }
-        else if (owned === required - 1) {
+        else if (owned === required - 2){
 
-            value += 300;
+            value += 900;
 
         }
-
 
         receiveValue += value;
     }
 
+    //--------------------------------------------------
+    // Cash reserve penalty
+    //--------------------------------------------------
 
+    const cashGiven =
+        trade.give
+        .filter(i=>i.startsWith("$"))
+        .reduce(
+            (a,b)=>a+Number(b.replace("$","")),
+            0
+        );
 
+    const cashRemaining =
+        mi.money - cashGiven;
+
+    if (cashRemaining < 200)
+        giveValue += (200-cashRemaining)*3;
+
+    //--------------------------------------------------
+    // Trade advantage
+    //--------------------------------------------------
 
     const advantage =
         receiveValue - giveValue;
 
-
-
-
     //--------------------------------------------------
-    // Only show analysis when manually testing
+    // Display analysis
     //--------------------------------------------------
 
-    if (showDetails) {
+    if (showDetails){
 
         log(
-            "Trade received value: " +
+            "Trade received value: "+
             Math.round(receiveValue)
         );
 
         lines++;
         update();
 
-
         log(
-            "Trade given value: " +
+            "Trade given value: "+
             Math.round(giveValue)
         );
 
         lines++;
         update();
 
-
         log(
-            "Trade advantage: " +
+            "Trade advantage: "+
             Math.round(advantage)
         );
 
@@ -1479,32 +1760,21 @@ function evaluateTrade(trade, showDetails = true) {
 
     }
 
-
-
-
     //--------------------------------------------------
-    // Cash trades need extra value
+    // Decision
     //--------------------------------------------------
 
-    if (
-        trade.give.some(item =>
-            item.startsWith("$")
-        ) &&
-        advantage < 250
-    ) {
+    if (completesMonopoly){
 
-        return false;
+        // Willing to slightly overpay
+        return advantage >= -500;
+
     }
 
-
-
-
-    //--------------------------------------------------
-    // Final decision
-    //--------------------------------------------------
-
     return advantage >= 0;
+
 }
+
 
 
 function getOwnedProperty(name) {
@@ -1529,63 +1799,185 @@ function getOwnedProperty(name) {
 }
 function tradePropertyValue(property) {
 
+    //--------------------------------------------------
+    // Base property value
+    //--------------------------------------------------
+
     let value = property.cost;
 
-    // Future rent potential
-    value += property.Hrent / 2;
+    //--------------------------------------------------
+    // Landing frequency weights
+    //--------------------------------------------------
 
+    const landingWeight = {
+        "brown": 0.90,
+        "light blue": 1.25,
+        "pink": 1.50,
+        "orange": 2.20,
+        "red": 1.90,
+        "yellow": 1.40,
+        "green": 1.10,
+        "dark blue": 1.00,
+        "railroad": 1.60,
+        "utility": 0.75
+    };
 
-    // Already owns monopoly
-    if (hasMonopoly(property.color)) {
+    value += property.Hrent * (landingWeight[property.color] || 1);
 
-        value += 600;
-    }
+    //--------------------------------------------------
+    // Existing buildings
+    //--------------------------------------------------
 
+    value += (property.houses || 0) * property.buildCost * 1.5;
 
-    // Completing a monopoly
+    if (property.hotel)
+        value += property.buildCost * 8;
+
+    //--------------------------------------------------
+    // Current ownership in this color
+    //--------------------------------------------------
+
     const owned =
         mi.properties.filter(
             p => p.color === property.color
         ).length;
-
 
     const exception =
         exceptions.find(
             e => e.color === property.color
         );
 
-
     const required =
         exception ? exception.amount : 3;
 
+    //--------------------------------------------------
+    // Monopoly bonuses
+    //--------------------------------------------------
 
     if (owned + 1 >= required) {
 
-        value += 500;
+        // Completing a monopoly is HUGE
+        value += 2500;
+
+    } else if (owned === required - 2) {
+
+        // One away from completing
+        value += 900;
+
+    } else if (owned > 0) {
+
+        // Already investing in this color
+        value += 250 * owned;
+
     }
 
+    //--------------------------------------------------
+    // Already owns monopoly
+    //--------------------------------------------------
 
-    // Buildings
-    value +=
-        (property.houses || 0) *
-        property.buildCost;
+    if (hasMonopoly(property.color)) {
 
+        value += 1500;
 
-    if (property.hotel === true) {
-
-        value +=
-            property.buildCost * 5;
     }
 
+    //--------------------------------------------------
+    // Cheap development bonus
+    //--------------------------------------------------
 
+    if (
+        property.buildCost > 0 &&
+        property.buildCost <= 100
+    ) {
+
+        value += 300;
+
+    }
+
+    //--------------------------------------------------
+    // Railroads
+    //--------------------------------------------------
+
+    if (property.color === "railroad") {
+
+        const ownedRR =
+            mi.properties.filter(
+                p => p.color === "railroad"
+            ).length;
+
+        value += ownedRR * 300;
+
+        if (ownedRR === 3)
+            value += 1800;
+
+    }
+
+    //--------------------------------------------------
+    // Utilities are intentionally weak
+    //--------------------------------------------------
+
+    if (property.color === "utility") {
+
+        value -= 150;
+
+    }
+
+    //--------------------------------------------------
     // Mortgaged penalty
+    //--------------------------------------------------
+
     if (property.mortgaged) {
 
-        value -= property.cost / 2;
+        value -= property.cost * 0.6;
+
     }
 
+    //--------------------------------------------------
+    // Block opponent from completing monopoly
+    //--------------------------------------------------
 
-    return value;
+    if (propertyOwners) {
+
+        const owners = {};
+
+        for (const [name, owner] of Object.entries(propertyOwners)) {
+
+            const p = containsProperty(name);
+
+            if (!p)
+                continue;
+
+            if (!owners[owner])
+                owners[owner] = {};
+
+            owners[owner][p.color] =
+                (owners[owner][p.color] || 0) + 1;
+
+        }
+
+        for (const owner in owners) {
+
+            const count =
+                owners[owner][property.color] || 0;
+
+            if (count === required - 1) {
+
+                // Preventing someone else's monopoly
+                value += 1200;
+
+            }
+        }
+
+    }
+
+    //--------------------------------------------------
+    // Cash preference
+    //--------------------------------------------------
+
+    if (mi.money < 500)
+        value *= 0.93;
+
+    return Math.round(value);
 }
 
 function completeTrade(trade) {
