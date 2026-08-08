@@ -1800,41 +1800,114 @@ function getOwnedProperty(name) {
 function tradePropertyValue(property) {
 
     //--------------------------------------------------
-    // Base property value
+    // BASE VALUE
     //--------------------------------------------------
 
     let value = property.cost;
 
     //--------------------------------------------------
-    // Landing frequency weights
+    // LANDING FREQUENCY
     //--------------------------------------------------
 
     const landingWeight = {
         "brown": 0.90,
         "light blue": 1.25,
         "pink": 1.50,
-        "orange": 2.20,
-        "red": 1.90,
-        "yellow": 1.40,
-        "green": 1.10,
-        "dark blue": 1.00,
-        "railroad": 1.60,
+        "orange": 2.25,
+        "red": 2.00,
+        "yellow": 1.45,
+        "green": 1.15,
+        "dark blue": 1.05,
+        "railroad": 1.70,
         "utility": 0.75
     };
 
-    value += property.Hrent * (landingWeight[property.color] || 1);
+    const weight =
+        landingWeight[property.color] || 1;
+
+    value +=
+        property.rent *
+        weight *
+        8;
+
+    value +=
+        property.Hrent *
+        weight *
+        0.75;
 
     //--------------------------------------------------
-    // Existing buildings
+    // BUILDING POTENTIAL
     //--------------------------------------------------
 
-    value += (property.houses || 0) * property.buildCost * 1.5;
+    if (property.buildCost > 0) {
 
-    if (property.hotel)
-        value += property.buildCost * 8;
+        value +=
+            property.rent1 *
+            weight *
+            1.5;
+
+        value +=
+            property.rent2 *
+            weight *
+            1.2;
+
+        value +=
+            property.rent3 *
+            weight *
+            1.0;
+
+        value +=
+            property.rent4 *
+            weight *
+            0.8;
+
+        value +=
+            property.Hrent *
+            weight *
+            0.7;
+
+        // Cheap development is extremely valuable.
+        if (property.buildCost <= 50)
+            value += 500;
+
+        else if (property.buildCost <= 100)
+            value += 400;
+
+        else if (property.buildCost <= 150)
+            value += 250;
+
+        else if (property.buildCost <= 200)
+            value += 100;
+    }
 
     //--------------------------------------------------
-    // Current ownership in this color
+    // EXISTING BUILDINGS
+    //--------------------------------------------------
+
+    const houses =
+        property.houses || 0;
+
+    if (houses > 0) {
+
+        value +=
+            houses *
+            property.buildCost *
+            2.0;
+    }
+
+    if (property.hotel) {
+
+        value +=
+            property.buildCost *
+            10;
+
+        value +=
+            property.Hrent *
+            1.5;
+    }
+
+    //--------------------------------------------------
+    // SET INFORMATION
     //--------------------------------------------------
 
     const owned =
@@ -1848,54 +1921,132 @@ function tradePropertyValue(property) {
         );
 
     const required =
-        exception ? exception.amount : 3;
+        exception
+            ? exception.amount
+            : 3;
+
+    const remaining =
+        Math.max(
+            0,
+            required - owned
+        );
 
     //--------------------------------------------------
-    // Monopoly bonuses
+    // SET PROGRESS
     //--------------------------------------------------
 
+    // This property completes the set.
     if (owned + 1 >= required) {
 
-        // Completing a monopoly is HUGE
-        value += 2500;
+        value += 4000;
 
-    } else if (owned === required - 2) {
+        // Completion becomes even more valuable
+        // when development is cheap.
+        if (
+            property.buildCost > 0 &&
+            property.buildCost <= 100
+        ) {
+            value += 750;
+        }
 
-        // One away from completing
-        value += 900;
+        // Orange/red monopolies are particularly dangerous.
+        if (property.color === "orange")
+            value += 750;
 
-    } else if (owned > 0) {
+        if (property.color === "red")
+            value += 600;
 
-        // Already investing in this color
-        value += 250 * owned;
+        if (property.color === "pink")
+            value += 350;
 
+        if (property.color === "light blue")
+            value += 300;
+    }
+
+    // One property away from completion.
+    else if (owned === required - 2) {
+
+        value += 1300;
+
+        if (property.buildCost > 0 &&
+            property.buildCost <= 100)
+        {
+            value += 350;
+        }
+    }
+
+    // Has some investment in this color.
+    else if (owned > 0) {
+
+        value +=
+            owned * 350;
     }
 
     //--------------------------------------------------
-    // Already owns monopoly
+    // ALREADY-COMPLETED MONOPOLY
     //--------------------------------------------------
 
     if (hasMonopoly(property.color)) {
 
-        value += 1500;
+        value += 1800;
 
+        // Additional properties in an owned monopoly
+        // are useful as bargaining/trade assets.
+        value += 250;
     }
 
     //--------------------------------------------------
-    // Cheap development bonus
+    // DEVELOPMENT QUALITY
     //--------------------------------------------------
 
-    if (
-        property.buildCost > 0 &&
-        property.buildCost <= 100
-    ) {
+    if (property.buildCost > 0) {
 
-        value += 300;
+        // Properties with large rent jumps deserve
+        // additional strategic value.
+        const developmentJump =
+            property.Hrent -
+            property.rent;
 
+        if (developmentJump >= 500)
+            value += 500;
+
+        else if (developmentJump >= 300)
+            value += 300;
+
+        else if (developmentJump >= 150)
+            value += 150;
     }
 
     //--------------------------------------------------
-    // Railroads
+    // ORANGE / RED PRIORITY
+    //--------------------------------------------------
+
+    // These groups are strategically dangerous because
+    // they combine strong landing frequency with strong
+    // developed rents.
+    if (property.color === "orange") {
+
+        value += 700;
+
+        if (owned > 0)
+            value += 600;
+    }
+
+    if (property.color === "red") {
+
+        value += 550;
+
+        if (owned > 0)
+            value += 450;
+    }
+
+    if (property.color === "pink") {
+
+        value += 250;
+    }
+
+    //--------------------------------------------------
+    // RAILROADS
     //--------------------------------------------------
 
     if (property.color === "railroad") {
@@ -1905,77 +2056,295 @@ function tradePropertyValue(property) {
                 p => p.color === "railroad"
             ).length;
 
-        value += ownedRR * 300;
+        // Value increases sharply as MI accumulates RR.
+        if (ownedRR === 0)
+            value += 150;
 
-        if (ownedRR === 3)
-            value += 1800;
+        else if (ownedRR === 1)
+            value += 450;
 
+        else if (ownedRR === 2)
+            value += 900;
+
+        else if (ownedRR === 3)
+            value += 2200;
+
+        // Completing all four.
+        if (ownedRR + 1 >= 4)
+            value += 2500;
     }
 
     //--------------------------------------------------
-    // Utilities are intentionally weak
+    // UTILITIES
     //--------------------------------------------------
 
     if (property.color === "utility") {
 
-        value -= 150;
+        value -= 100;
 
+        // Two utilities are substantially better
+        // than one.
+        const ownedUtilities =
+            mi.properties.filter(
+                p => p.color === "utility"
+            ).length;
+
+        if (ownedUtilities === 1)
+            value += 450;
     }
 
     //--------------------------------------------------
-    // Mortgaged penalty
-    //--------------------------------------------------
-
-    if (property.mortgaged) {
-
-        value -= property.cost * 0.6;
-
-    }
-
-    //--------------------------------------------------
-    // Block opponent from completing monopoly
+    // OPPONENT ANALYSIS
     //--------------------------------------------------
 
     if (propertyOwners) {
 
-        const owners = {};
+        const opponents = {};
 
-        for (const [name, owner] of Object.entries(propertyOwners)) {
+        //--------------------------------------------------
+        // Count every opponent's holdings by color
+        //--------------------------------------------------
 
-            const p = containsProperty(name);
+        for (
+            const [name, owner]
+            of Object.entries(propertyOwners)
+        ) {
+
+            const p =
+                containsProperty(name);
 
             if (!p)
                 continue;
 
-            if (!owners[owner])
-                owners[owner] = {};
+            if (!opponents[owner])
+                opponents[owner] = {};
 
-            owners[owner][p.color] =
-                (owners[owner][p.color] || 0) + 1;
-
+            opponents[owner][p.color] =
+                (opponents[owner][p.color] || 0) + 1;
         }
 
-        for (const owner in owners) {
+        //--------------------------------------------------
+        // Evaluate every opponent
+        //--------------------------------------------------
 
-            const count =
-                owners[owner][property.color] || 0;
+        for (
+            const owner in opponents
+        ) {
 
-            if (count === required - 1) {
+            const opponentCount =
+                opponents[owner][property.color] || 0;
 
-                // Preventing someone else's monopoly
+            //--------------------------------------------------
+            // BLOCK A NEAR-MONOPOLY
+            //--------------------------------------------------
+
+            if (
+                opponentCount === required - 1
+            ) {
+
+                // Preventing a monopoly is extremely valuable.
+                value += 2200;
+
+                // Especially important when the group
+                // is a strong developed group.
+                if (property.color === "orange")
+                    value += 900;
+
+                if (property.color === "red")
+                    value += 750;
+
+                if (property.color === "pink")
+                    value += 450;
+
+                //--------------------------------------------------
+                // If MI can actually complete its own set too,
+                // this becomes a double strategic win.
+                //--------------------------------------------------
+
+                if (owned + 1 >= required)
+                    value += 1000;
+            }
+
+            //--------------------------------------------------
+            // OPPONENT HAS TWO OF THREE
+            //--------------------------------------------------
+
+            else if (
+                required === 3 &&
+                opponentCount === 2
+            ) {
+
                 value += 1200;
+            }
 
+            //--------------------------------------------------
+            // OPPONENT HAS ONE OF THREE
+            //--------------------------------------------------
+
+            else if (
+                required === 3 &&
+                opponentCount === 1
+            ) {
+
+                value += 250;
+            }
+
+            //--------------------------------------------------
+            // RAILROAD BLOCKING
+            //--------------------------------------------------
+
+            if (
+                property.color === "railroad" &&
+                opponentCount === 3
+            ) {
+
+                value += 1800;
+            }
+
+            //--------------------------------------------------
+            // UTILITY BLOCKING
+            //--------------------------------------------------
+
+            if (
+                property.color === "utility" &&
+                opponentCount === 1
+            ) {
+
+                value += 600;
             }
         }
-
     }
 
     //--------------------------------------------------
-    // Cash preference
+    // PROPERTY AS A TRADE WEAPON
     //--------------------------------------------------
 
-    if (mi.money < 500)
-        value *= 0.93;
+    // A property becomes more valuable if owning it
+    // gives MI leverage over another player.
+
+    if (propertyOwners) {
+
+        let playersNeedingProperty = 0;
+
+        for (
+            const [name, owner]
+            of Object.entries(propertyOwners)
+        ) {
+
+            const p =
+                containsProperty(name);
+
+            if (!p)
+                continue;
+
+            // If this property completes an opponent's
+            // set, it becomes a valuable bargaining chip.
+            if (
+                p.color === property.color
+            ) {
+
+                playersNeedingProperty++;
+            }
+        }
+
+        if (playersNeedingProperty > 0) {
+
+            value +=
+                playersNeedingProperty *
+                350;
+        }
+    }
+
+    //--------------------------------------------------
+    // MORTGAGED PROPERTY
+    //--------------------------------------------------
+
+    if (property.mortgaged) {
+
+        value -=
+            property.cost * 0.75;
+    }
+
+    //--------------------------------------------------
+    // CASH SITUATION
+    //--------------------------------------------------
+
+    if (mi.money < 300) {
+
+        // When nearly broke, MI should prefer properties
+        // that generate immediate strategic value rather
+        // than speculative assets.
+        value *= 0.90;
+
+    } else if (mi.money < 500) {
+
+        value *= 0.95;
+
+    } else if (mi.money > 1000) {
+
+        // Wealth gives MI more ability to exploit
+        // development opportunities.
+        if (property.buildCost > 0)
+            value *= 1.05;
+    }
+
+    //--------------------------------------------------
+    // DEVELOPMENT ROI
+    //--------------------------------------------------
+
+    if (property.buildCost > 0) {
+
+        const firstHouseGain =
+            property.rent1 -
+            property.rent;
+
+        if (
+            firstHouseGain /
+            property.buildCost >= 0.8
+        ) {
+
+            value += 450;
+
+        } else if (
+            firstHouseGain /
+            property.buildCost >= 0.5
+        ) {
+
+            value += 250;
+        }
+    }
+
+    //--------------------------------------------------
+    // ENDGAME VALUE
+    //--------------------------------------------------
+
+    // Expensive properties become more useful once MI
+    // has enough capital to develop them.
+    if (mi.money >= 1000) {
+
+        if (
+            property.cost >= 300 &&
+            property.buildCost > 0
+        ) {
+
+            value += 250;
+        }
+    }
+
+    //--------------------------------------------------
+    // FINAL SANITY ADJUSTMENTS
+    //--------------------------------------------------
+
+    // Never let a normal property become worthless.
+    value =
+        Math.max(
+            property.cost * 0.50,
+            value
+        );
+
+    //--------------------------------------------------
+    // ROUND
+    //--------------------------------------------------
 
     return Math.round(value);
 }
