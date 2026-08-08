@@ -963,21 +963,44 @@ function evaluateProperty(property) {
 }
 
 function containsProperty(input) {
+    if (!input || !input.trim()) {
+        return null;
+    }
+
     const normalizedInput = input
         .toLowerCase()
         .replaceAll(" ", "")
-        .replaceAll(".", "");
+        .replaceAll(".", "")
+        .replaceAll(",", "");
 
+    // First: look for an exact match
+    const exact = monopolyProperties.find(property => {
+        const normalizedName = property.name
+            .toLowerCase()
+            .replaceAll(" ", "")
+            .replaceAll(".", "")
+            .replaceAll(",", "");
+
+        return normalizedInput === normalizedName;
+    });
+
+    if (exact) {
+        return exact;
+    }
+
+    // Second: allow partial matching
     return monopolyProperties.find(property => {
         const normalizedName = property.name
             .toLowerCase()
             .replaceAll(" ", "")
-            .replaceAll(".", "");
+            .replaceAll(".", "")
+            .replaceAll(",", "");
 
         return normalizedInput.includes(normalizedName) ||
                normalizedName.includes(normalizedInput);
     });
 }
+
 function remainingInSet(property) {
     const owned = mi.properties.filter(obj => obj.color === property.color).length;
     const exception = exceptions.find(obj => obj.color === property.color);
